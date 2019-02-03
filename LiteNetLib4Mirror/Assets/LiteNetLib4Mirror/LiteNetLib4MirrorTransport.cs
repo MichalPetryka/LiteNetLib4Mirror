@@ -14,7 +14,7 @@ namespace Mirror.LiteNetLib
 	public class LiteNetLib4MirrorTransport : Transport
 	{
 		public static LiteNetLib4MirrorTransport Singleton;
-		public const string TransportVersion = "1.0.0";
+		public const string TransportVersion = "1.0.1";
 
 #if UNITY_EDITOR
 		[Header("Connection settings")]
@@ -225,21 +225,17 @@ namespace Mirror.LiteNetLib
 				case States.ClientConnected:
 					return $"LiteNetLib4Mirror Client Connected to {Singleton.clientAddress}:{Singleton.port}";
 				case States.ServerStarting:
-				{
 #if DISABLE_IPV6
 					return $"LiteNetLib4Mirror Server starting at IPv4:{Singleton.serverIPv4BindAddress} Port:{Singleton.port}";
 #else
 					return $"LiteNetLib4Mirror Server starting at IPv4:{Singleton.serverIPv4BindAddress} IPv6:{Singleton.serverIPv6BindAddress} Port:{Singleton.port}";
 #endif
-				}
 				case States.ServerActive:
-				{
 #if DISABLE_IPV6
 					return $"LiteNetLib4Mirror Server active at IPv4:{Singleton.serverIPv4BindAddress} Port:{Singleton.port}";
 #else
 					return $"LiteNetLib4Mirror Server active at IPv4:{Singleton.serverIPv4BindAddress} IPv6:{Singleton.serverIPv6BindAddress} Port:{Singleton.port}";
 #endif
-				}
 				default:
 					return "Invalid state!";
 			}
@@ -407,7 +403,8 @@ namespace Mirror.LiteNetLib
 		private static void ServerOnConnectionRequestEvent(ConnectionRequest request)
 		{
 			if (_host.PeersCount < Singleton.maxConnections)
-				request.AcceptIfKey(_code);
+				if (request.AcceptIfKey(_code) == null)
+					Debug.LogWarning("Client tried to join with an invalid auth code! Current code:" + _code);
 			else
 				request.Reject();
 		}
