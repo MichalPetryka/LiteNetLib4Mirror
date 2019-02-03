@@ -15,12 +15,18 @@ public class LiteNetLib4MirrorNetworkManager : NetworkManager
 
 	public virtual LiteNetLib4MirrorTransport Transport => LiteNetLib4MirrorTransport.Singleton;
 
+	private bool _awaked;
+
 	public override void Awake()
 	{
-		singleton = this;
-		NetworkManager.singleton = this;
-		GetComponent<LiteNetLib4MirrorTransport>().Load();
-		transport = Transport;
+		if (!_awaked)
+		{
+			singleton = this;
+			NetworkManager.singleton = this;
+			GetComponent<LiteNetLib4MirrorTransport>().Load();
+			transport = Transport;
+			_awaked = true;
+		}
 		base.Awake();
 	}
 	/// <summary>
@@ -71,6 +77,7 @@ public class LiteNetLib4MirrorNetworkManager : NetworkManager
 		maxConnections = maxPlayers;
 		return StartHost();
 	}
+
 #if DISABLE_IPV6
 	/// <summary>
 	/// Start Server with provided bind address, port and connection limit
