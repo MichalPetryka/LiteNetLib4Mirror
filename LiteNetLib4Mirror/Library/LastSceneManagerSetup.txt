@@ -1,0 +1,4 @@
+sceneSetups:
+- path: Assets/Mirror/Examples/Pong/Scenes/Scene.unity
+  isLoaded: 1
+  isActive: 1
