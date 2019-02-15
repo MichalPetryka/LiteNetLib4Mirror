@@ -983,6 +983,7 @@ MonoBehaviour:
   dontDestroyOnLoad: 1
   runInBackground: 1
   startOnHeadless: 1
+  serverTickRate: 30
   showDebugMessages: 0
   offlineScene: 
   onlineScene: 

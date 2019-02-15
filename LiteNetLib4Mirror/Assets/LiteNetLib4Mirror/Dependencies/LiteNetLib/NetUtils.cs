@@ -129,6 +129,7 @@ namespace LiteNetLib
             //Fallback mode (unity android)
             if (targetList.Count == 0)
             {
+                string hostname = Dns.GetHostName();
                 IPAddress[] addresses = ResolveAddresses(Dns.GetHostName());
                 foreach (IPAddress ip in addresses)
                 {

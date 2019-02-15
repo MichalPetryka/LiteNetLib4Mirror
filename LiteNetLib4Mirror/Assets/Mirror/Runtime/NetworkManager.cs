@@ -24,6 +24,8 @@ namespace Mirror
         [FormerlySerializedAs("m_DontDestroyOnLoad")] public bool dontDestroyOnLoad = true;
         [FormerlySerializedAs("m_RunInBackground")] public bool runInBackground = true;
         public bool startOnHeadless = true;
+        [Tooltip("Server Update frequency, per second. Use around 60Hz for fast paced games like Counter-Strike to minimize latency. Use around 30Hz for games like WoW to minimize computations. Use around 1-10Hz for slow paced games like EVE.")]
+        public int serverTickRate = 30;
         [FormerlySerializedAs("m_ShowDebugMessages")] public bool showDebugMessages;
 
         [Scene]
@@ -55,7 +57,9 @@ namespace Mirror
         public int numPlayers => NetworkServer.connections.Count(kv => kv.Value.playerController != null);
 
         // runtime data
-        public static string networkSceneName = ""; // this is used to make sure that all scene changes are initialized by UNET. loading a scene manually wont set networkSceneName, so UNET would still load it again on start.
+        // this is used to make sure that all scene changes are initialized by UNET. 
+        // Loading a scene manually wont set networkSceneName, so UNET would still load it again on start.
+        public static string networkSceneName = ""; 
         [NonSerialized]
         public bool isNetworkActive;
         public NetworkClient client;
@@ -102,7 +106,7 @@ namespace Mirror
             {
                 if (singleton != null)
                 {
-                    if (LogFilter.Debug) { Debug.Log("Multiple NetworkManagers detected in the scene. Only one NetworkManager can exist at a time. The duplicate NetworkManager will not be used."); }
+                    Debug.LogError("Multiple NetworkManagers detected in the scene. Only one NetworkManager can exist at a time. The duplicate NetworkManager will not be used.");
                     Destroy(gameObject);
                     return;
                 }
@@ -195,6 +199,17 @@ namespace Mirror
 
             if (runInBackground)
                 Application.runInBackground = true;
+
+            // set a fixed tick rate instead of updating as often as possible
+            // * if not in Editor (it doesn't work in the Editor)
+            // * if not in Host mode
+#if !UNITY_EDITOR
+            if (!NetworkClient.active)
+            {
+                Application.targetFrameRate = serverTickRate;
+                Debug.Log("Server Tick Rate set to: " + Application.targetFrameRate + " Hz.");
+            }
+#endif
 
             if (!NetworkServer.Listen(maxConnections))
             {
@@ -404,6 +419,9 @@ namespace Mirror
                 if (LogFilter.Debug) { Debug.Log("ClientChangeScene: pausing handlers while scene is loading to avoid data loss after scene was loaded."); }
                 NetworkManager.singleton.transport.enabled = false;
             }
+
+            // Let client prepare for scene change
+            OnClientChangeScene(newSceneName);
 
             s_LoadingSceneAsync = SceneManager.LoadSceneAsync(newSceneName);
             networkSceneName = newSceneName;
@@ -674,6 +692,9 @@ namespace Mirror
                 ? Instantiate(playerPrefab, startPos.position, startPos.rotation)
                 : Instantiate(playerPrefab, Vector3.zero, Quaternion.identity);
 
+            // Avoid "(Clone)" suffix. some games do show the name. no need for an extra sync to fix the suffix.
+            player.name = playerPrefab.name;
+
             NetworkServer.AddPlayerForConnection(conn, player);
         }
 
@@ -745,6 +766,10 @@ namespace Mirror
         public virtual void OnClientNotReady(NetworkConnection conn)
         {
         }
+
+        // Called from ClientChangeScene immediately before SceneManager.LoadSceneAsync is executed
+        // This allows client to do work / cleanup / prep before the scene changes.
+        public virtual void OnClientChangeScene(string newSceneName) { }
 
         public virtual void OnClientSceneChanged(NetworkConnection conn)
         {
