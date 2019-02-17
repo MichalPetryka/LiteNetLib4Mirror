@@ -57,7 +57,9 @@ namespace Mirror
         public int numPlayers => NetworkServer.connections.Count(kv => kv.Value.playerController != null);
 
         // runtime data
-        public static string networkSceneName = ""; // this is used to make sure that all scene changes are initialized by UNET. loading a scene manually wont set networkSceneName, so UNET would still load it again on start.
+        // this is used to make sure that all scene changes are initialized by UNET. 
+        // Loading a scene manually wont set networkSceneName, so UNET would still load it again on start.
+        public static string networkSceneName = ""; 
         [NonSerialized]
         public bool isNetworkActive;
         public NetworkClient client;
@@ -74,7 +76,7 @@ namespace Mirror
         // virtual so that inheriting classes' Awake() can call base.Awake() too
         public virtual void Awake()
         {
-            //Debug.Log("Thank you for using Mirror! https://forum.unity.com/threads/mirror-networking-for-unity-aka-hlapi-community-edition.425437/");
+            Debug.Log("Thank you for using Mirror! https://forum.unity.com/threads/mirror-networking-for-unity-aka-hlapi-community-edition.425437/");
 
             // Set the networkSceneName to prevent a scene reload
             // if client connection to server fails.

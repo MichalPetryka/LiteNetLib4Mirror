@@ -1,4 +1,4 @@
-﻿using LiteNetLib;
+using LiteNetLib;
 using LiteNetLib.Utils;
 using Open.Nat;
 using System;
@@ -21,7 +21,7 @@ namespace Mirror.LiteNetLib
 	public class LiteNetLib4MirrorTransport : Transport
 	{
 		public static LiteNetLib4MirrorTransport Singleton;
-		public const string TransportVersion = "1.0.1";
+		public const string TransportVersion = "1.0.2";
 
 #if UNITY_EDITOR
 		[Header("Connection settings")]
@@ -30,12 +30,12 @@ namespace Mirror.LiteNetLib
 #if UNITY_EDITOR
 		[Rename("Server IPv4 Bind Address")]
 #endif
-		public string serverIPv4BindAddress = "127.0.0.1";
+		public string serverIPv4BindAddress = "0.0.0.0";
 #if !DISABLE_IPV6
 #if UNITY_EDITOR
 		[Rename("Server IPv6 Bind Address")]
 #endif
-		public string serverIPv6BindAddress = "::1";
+		public string serverIPv6BindAddress = "::";
 #endif
 		public ushort port = 7777;
 #if UNITY_EDITOR
@@ -186,9 +186,9 @@ namespace Mirror.LiteNetLib
 			StopInternal();
 		}
 
-		public override bool GetConnectionInfo(int connectionId, out string address)
+		public override string ServerGetClientAddress(int connectionId)
 		{
-			return GetConnectionInfoInteral(connectionId, out address);
+			return ServerGetClientAddressInteral(connectionId);
 		}
 
 		public override void Shutdown()
@@ -600,16 +600,9 @@ namespace Mirror.LiteNetLib
 			State = States.Idle;
 		}
 
-		private static bool GetConnectionInfoInteral(int connectionId, out string address)
+		private static string ServerGetClientAddressInteral(int connectionId)
 		{
-			if (_host.ConnectedPeerList.Count < connectionId)
-			{
-				address = _host.ConnectedPeerList[connectionId - 1].EndPoint.Address.ToString();
-				return true;
-			}
-
-			address = "(invalid)";
-			return false;
+			return _host.ConnectedPeerList[connectionId - 1].EndPoint.Address.ToString();
 		}
 
 		private static void ShutdownInternal()

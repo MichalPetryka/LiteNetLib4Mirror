@@ -993,7 +993,7 @@ MonoBehaviour:
   showDebugMessages: 0
   offlineScene: 
   onlineScene: 
-  transport: {fileID: 1886246552}
+  transport: {fileID: 0}
   networkAddress: 127.0.0.1
   maxConnections: 4
   playerPrefab: {fileID: 1240244544407914, guid: b1651eaf8c7564a1c86031dfbb8a7b28,
