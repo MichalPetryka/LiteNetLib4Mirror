@@ -81,6 +81,7 @@ namespace Mirror
 
         }
 
+
         internal static void RegisterMessageHandlers()
         {
             RegisterHandler(MsgType.Ready, OnClientReadyMessage);
@@ -377,56 +378,35 @@ namespace Mirror
             }
         }
 
-        private static void OnError(int connectionId, Exception exception)
-        {
-            // TODO Let's discuss how we will handle errors
-            Debug.LogException(exception);
-        }
-
         static void OnData(NetworkConnection conn, byte[] data)
         {
             conn.TransportReceive(data);
         }
 
-        static void GenerateConnectError(byte error)
+        private static void OnError(int connectionId, Exception exception)
         {
-            Debug.LogError("UNet Server Connect Error: " + error);
-            GenerateError(null, error);
-        }
-
-        /* TODO use or remove
-        static void GenerateDataError(NetworkConnection conn, byte error)
-        {
-            NetworkError dataError = (NetworkError)error;
-            Debug.LogError("UNet Server Data Error: " + dataError);
-            GenerateError(conn, error);
-        }
-
-        static void GenerateDisconnectError(NetworkConnection conn, byte error)
-        {
-            NetworkError disconnectError = (NetworkError)error;
-            Debug.LogError("UNet Server Disconnect Error: " + disconnectError + " conn:[" + conn + "]:" + conn.connectionId);
-            GenerateError(conn, error);
-        }
-        */
-
-        static void GenerateError(NetworkConnection conn, byte error)
-        {
-            if (handlers.ContainsKey((short)MsgType.Error))
+            NetworkConnection conn;
+            if (connections.TryGetValue(connectionId, out conn))
             {
-                ErrorMessage msg = new ErrorMessage
-                {
-                    value = error
-                };
-
-                // write the message to a local buffer
-                NetworkWriter writer = new NetworkWriter();
-                msg.Serialize(writer);
-
-                // pass a reader (attached to local buffer) to handler
-                NetworkReader reader = new NetworkReader(writer.ToArray());
-                conn.InvokeHandler((short)MsgType.Error, reader);
+                OnError(conn, exception);
             }
+            else
+            {
+                Debug.LogException(exception);
+            }
+
+        }
+
+        private static void OnError(NetworkConnection conn, Exception exception)
+        {
+            NetworkError errorMessage = new NetworkError
+            {
+                msgType = (short)MsgType.Error,
+                conn = conn,
+                exception = exception,
+            };
+
+            conn.InvokeHandler(errorMessage);
         }
 
         public static void RegisterHandler(short msgType, NetworkMessageDelegate handler)
@@ -1091,18 +1071,15 @@ namespace Mirror
 
         internal static bool InvokeBytes(ULocalConnectionToServer conn, byte[] buffer)
         {
-            ushort msgType;
-            byte[] content;
-            if (Protocol.UnpackMessage(buffer, out msgType, out content))
+            NetworkReader reader = new NetworkReader(buffer);
+            short msgType = (short)reader.ReadPackedUInt32();
+
+            if (handlers.ContainsKey(msgType) && s_LocalConnection != null)
             {
-                if (handlers.ContainsKey((short)msgType) && s_LocalConnection != null)
-                {
-                    // this must be invoked with the connection to the client, not the client's connection to the server
-                    s_LocalConnection.InvokeHandler((short)msgType, new NetworkReader(content));
-                    return true;
-                }
+                // this must be invoked with the connection to the client, not the client's connection to the server
+                s_LocalConnection.InvokeHandler((short)msgType, reader);
+                return true;
             }
-            Debug.LogError("InvokeBytes: failed to unpack message:" + BitConverter.ToString(buffer));
             return false;
         }
 

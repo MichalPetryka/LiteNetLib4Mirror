@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -149,8 +149,6 @@ namespace Mirror
     }
 
     // ---------- Public System Messages -------------------
-
-    public class ErrorMessage : ByteMessage {}
 
     public class ReadyMessage : EmptyMessage {}
 

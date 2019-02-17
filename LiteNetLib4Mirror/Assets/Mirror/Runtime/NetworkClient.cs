@@ -199,52 +199,6 @@ namespace Mirror
             }
         }
 
-        void GenerateConnectError(byte error)
-        {
-            Debug.LogError("UNet Client Error Connect Error: " + error);
-            GenerateError(error);
-        }
-
-        /* TODO use or remove
-        void GenerateDataError(byte error)
-        {
-            NetworkError dataError = (NetworkError)error;
-            Debug.LogError("UNet Client Data Error: " + dataError);
-            GenerateError(error);
-        }
-
-        void GenerateDisconnectError(byte error)
-        {
-            NetworkError disconnectError = (NetworkError)error;
-            Debug.LogError("UNet Client Disconnect Error: " + disconnectError);
-            GenerateError(error);
-        }
-        */
-
-        void GenerateError(byte error)
-        {
-            NetworkMessageDelegate msgDelegate;
-            if (handlers.TryGetValue((short)MsgType.Error, out msgDelegate))
-            {
-                ErrorMessage msg = new ErrorMessage
-                {
-                    value = error
-                };
-
-                // write the message to a local buffer
-                NetworkWriter writer = new NetworkWriter();
-                msg.Serialize(writer);
-
-                NetworkMessage netMsg = new NetworkMessage
-                {
-                    msgType = (short)MsgType.Error,
-                    reader = new NetworkReader(writer.ToArray()),
-                    conn = m_Connection
-                };
-                msgDelegate(netMsg);
-            }
-        }
-
         [Obsolete("Use NetworkTime.rtt instead")]
         public float GetRTT()
         {

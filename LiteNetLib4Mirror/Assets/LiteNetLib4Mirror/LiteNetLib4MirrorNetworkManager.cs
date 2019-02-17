@@ -1,8 +1,5 @@
 ﻿using Mirror;
 using Mirror.LiteNetLib;
-using System;
-using System.Linq;
-using System.Net.NetworkInformation;
 using UnityEngine;
 
 [RequireComponent(typeof(LiteNetLib4MirrorTransport))]
@@ -13,34 +10,25 @@ public class LiteNetLib4MirrorNetworkManager : NetworkManager
 	/// </summary>
 	public new static LiteNetLib4MirrorNetworkManager singleton;
 
-	public virtual LiteNetLib4MirrorTransport Transport => LiteNetLib4MirrorTransport.Singleton;
-
-	private bool _awaked;
-
 	public override void Awake()
 	{
-		if (!_awaked)
-		{
-			singleton = this;
-			NetworkManager.singleton = this;
-			GetComponent<LiteNetLib4MirrorTransport>().Load();
-			transport = Transport;
-			_awaked = true;
-		}
+		singleton = this;
+		NetworkManager.singleton = this;
 		base.Awake();
 	}
+
 	/// <summary>
 	/// Start client with ip and port
 	/// </summary>
 	/// <param name="ip">IP to connect</param>
 	/// <param name="port">Port</param>
-	/// <returns></returns>
 	public NetworkClient StartClient(string ip, ushort port)
 	{
+		networkAddress = ip;
 		maxConnections = 2;
-		Transport.clientAddress = ip;
-		Transport.port = port;
-		Transport.maxConnections = 2;
+		LiteNetLib4MirrorTransport.Singleton.clientAddress = ip;
+		LiteNetLib4MirrorTransport.Singleton.port = port;
+		LiteNetLib4MirrorTransport.Singleton.maxConnections = 2;
 		maxConnections = 2;
 		return StartClient();
 	}
@@ -52,8 +40,6 @@ public class LiteNetLib4MirrorNetworkManager : NetworkManager
 	/// <param name="serverIPv4BindAddress">IPv4 bind address</param>
 	/// <param name="port">Port</param>
 	/// <param name="maxPlayers">Connection limit</param>
-	/// <returns></returns>
-	public NetworkClient StartHost(string serverIPv4BindAddress, ushort port, ushort maxPlayers)
 #else
 	/// <summary>
 	/// Start Host with provided bind addresses, port and connection limit
@@ -62,18 +48,22 @@ public class LiteNetLib4MirrorNetworkManager : NetworkManager
 	/// <param name="serverIPv6BindAddress">IPv6 bind address</param>
 	/// <param name="port">Port</param>
 	/// <param name="maxPlayers">Connection limit</param>
-	/// <returns></returns>
+#endif
+#if DISABLE_IPV6
+	public NetworkClient StartHost(string serverIPv4BindAddress, ushort port, ushort maxPlayers)
+#else
 	public NetworkClient StartHost(string serverIPv4BindAddress, string serverIPv6BindAddress, ushort port, ushort maxPlayers)
 #endif
 	{
+		networkAddress = serverIPv4BindAddress;
 		maxConnections = maxPlayers;
-		Transport.clientAddress = serverIPv4BindAddress;
-		Transport.serverIPv4BindAddress = serverIPv4BindAddress;
+		LiteNetLib4MirrorTransport.Singleton.clientAddress = serverIPv4BindAddress;
+		LiteNetLib4MirrorTransport.Singleton.serverIPv4BindAddress = serverIPv4BindAddress;
 #if !DISABLE_IPV6
-		Transport.serverIPv6BindAddress = serverIPv6BindAddress;
+		LiteNetLib4MirrorTransport.Singleton.serverIPv6BindAddress = serverIPv6BindAddress;
 #endif
-		Transport.port = port;
-		Transport.maxConnections = maxPlayers;
+		LiteNetLib4MirrorTransport.Singleton.port = port;
+		LiteNetLib4MirrorTransport.Singleton.maxConnections = maxPlayers;
 		maxConnections = maxPlayers;
 		return StartHost();
 	}
@@ -85,9 +75,6 @@ public class LiteNetLib4MirrorNetworkManager : NetworkManager
 	/// <param name="serverIPv4BindAddress">IPv4 bind address</param>
 	/// <param name="port">Port</param>
 	/// <param name="maxPlayers">Connection limit</param>
-	/// <returns></returns>
-	public NetworkClient StartHost(string serverIPv4BindAddress, ushort port, ushort maxPlayers)
-	public bool StartServer(string serverIPv4BindAddress, ushort port, ushort maxPlayers)
 #else
 	/// <summary>
 	/// Start Server with provided bind addresses, port and connection limit
@@ -96,18 +83,22 @@ public class LiteNetLib4MirrorNetworkManager : NetworkManager
 	/// <param name="serverIPv6BindAddress">IPv6 bind address</param>
 	/// <param name="port">Port</param>
 	/// <param name="maxPlayers">Connection limit</param>
-	/// <returns></returns>
+#endif
+#if DISABLE_IPV6
+	public bool StartServer(string serverIPv4BindAddress, ushort port, ushort maxPlayers)
+#else
 	public bool StartServer(string serverIPv4BindAddress, string serverIPv6BindAddress, ushort port, ushort maxPlayers)
 #endif
 	{
+		networkAddress = serverIPv4BindAddress;
 		maxConnections = maxPlayers;
-		Transport.clientAddress = serverIPv4BindAddress;
-		Transport.serverIPv4BindAddress = serverIPv4BindAddress;
+		LiteNetLib4MirrorTransport.Singleton.clientAddress = serverIPv4BindAddress;
+		LiteNetLib4MirrorTransport.Singleton.serverIPv4BindAddress = serverIPv4BindAddress;
 #if !DISABLE_IPV6
-		Transport.serverIPv6BindAddress = serverIPv6BindAddress;
+		LiteNetLib4MirrorTransport.Singleton.serverIPv6BindAddress = serverIPv6BindAddress;
 #endif
-		Transport.port = port;
-		Transport.maxConnections = maxPlayers;
+		LiteNetLib4MirrorTransport.Singleton.port = port;
+		LiteNetLib4MirrorTransport.Singleton.maxConnections = maxPlayers;
 		maxConnections = maxPlayers;
 		return StartServer();
 	}
@@ -117,17 +108,17 @@ public class LiteNetLib4MirrorNetworkManager : NetworkManager
 	/// </summary>
 	/// <param name="port">Port</param>
 	/// <param name="maxPlayers">Connection limit</param>
-	/// <returns></returns>
 	public NetworkClient StartHost(ushort port, ushort maxPlayers)
 	{
+		networkAddress = "127.0.0.1";
 		maxConnections = maxPlayers;
-		Transport.clientAddress = "127.0.0.1";
-		Transport.serverIPv4BindAddress = "127.0.0.1";
+		LiteNetLib4MirrorTransport.Singleton.clientAddress = "127.0.0.1";
+		LiteNetLib4MirrorTransport.Singleton.serverIPv4BindAddress = "0.0.0.0";
 #if !DISABLE_IPV6
-		Transport.serverIPv6BindAddress = "::1";
+		LiteNetLib4MirrorTransport.Singleton.serverIPv6BindAddress = "::";
 #endif
-		Transport.port = port;
-		Transport.maxConnections = maxPlayers;
+		LiteNetLib4MirrorTransport.Singleton.port = port;
+		LiteNetLib4MirrorTransport.Singleton.maxConnections = maxPlayers;
 		maxConnections = maxPlayers;
 		return StartHost();
 	}
@@ -137,29 +128,17 @@ public class LiteNetLib4MirrorNetworkManager : NetworkManager
 	/// </summary>
 	/// <param name="port">Port</param>
 	/// <param name="maxPlayers">Connection limit</param>
-	/// <returns></returns>
 	public bool StartServer(ushort port, ushort maxPlayers)
 	{
+		networkAddress = "127.0.0.1";
 		maxConnections = maxPlayers;
-		Transport.serverIPv4BindAddress = "127.0.0.1";
+		LiteNetLib4MirrorTransport.Singleton.serverIPv4BindAddress = "0.0.0.0";
 #if !DISABLE_IPV6
-		Transport.serverIPv6BindAddress = "::1";
+		LiteNetLib4MirrorTransport.Singleton.serverIPv6BindAddress = "::";
 #endif
-		Transport.port = port;
-		Transport.maxConnections = maxPlayers;
+		LiteNetLib4MirrorTransport.Singleton.port = port;
+		LiteNetLib4MirrorTransport.Singleton.maxConnections = maxPlayers;
 		maxConnections = maxPlayers;
 		return StartServer();
-	}
-	/// <summary>
-	/// Utility function for getting first free port in range (as a bonus, should work if unity doesn't shit itself)
-	/// </summary>
-	/// <param name="ports">Available ports</param>
-	/// <returns></returns>
-	public int GetFirstFreePort(params ushort[] ports)
-	{
-		if (ports == null || ports.Length == 0) throw new Exception("No ports provided");
-		ushort freeport = ports.Except(Array.ConvertAll(IPGlobalProperties.GetIPGlobalProperties().GetActiveUdpListeners(), p => (ushort)p.Port)).FirstOrDefault();
-		if (freeport == 0) throw new Exception("No free port!");
-		return freeport;
 	}
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Profiling;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -45,20 +46,32 @@ namespace Mirror
         bool m_Reset;
 
         // properties
+        ///<summary>True if the object is running on a client.</summary>
         public bool isClient => m_IsClient;
+        ///<summary>True if this object is running on the server, and has been spawned.</summary>
         public bool isServer => m_IsServer && NetworkServer.active; // dont return true if server stopped.
+        ///<summary>True if the object is the one that represents the player on the local machine.</summary>
         public bool isLocalPlayer => m_IsLocalPlayer;
+        ///<summary>True if this object is the authoritative version of the object. For more info: https://vis2k.github.io/Mirror/Concepts/Authority</summary>
         public bool hasAuthority => m_HasAuthority;
 
-        // <connectionId, NetworkConnection>
+        ///<summary>The list of client NetworkConnections that are able to see this object.
+        ///  connectionId -> NetworkConnection </summary>
         public Dictionary<int, NetworkConnection> observers;
 
+        ///<summary>A unique identifier for this network object, assigned when spawned.</summary>
         public uint netId => m_NetId;
+        ///<summary>A unique identifier for networked objects in a scene.</summary>
         public uint sceneId => m_SceneId;
+        ///<summary>A flag to make this object not be spawned on clients.</summary>
         public bool serverOnly { get { return m_ServerOnly; } set { m_ServerOnly = value; } }
+        ///<summary>True if the object is controlled by the client that owns it.</summary>
         public bool localPlayerAuthority { get { return m_LocalPlayerAuthority; } set { m_LocalPlayerAuthority = value; } }
+        ///<summary>The client that has authority for this object. This will be null if no client has authority.</summary>
         public NetworkConnection clientAuthorityOwner => m_ClientAuthorityOwner;
+        ///<summary>The NetworkConnection associated with this NetworkIdentity. This is only valid for player objects on a local client.</summary>
         public NetworkConnection connectionToServer => m_ConnectionToServer;
+        ///<summary>The NetworkConnection associated with this NetworkIdentity. This is only valid for player objects on the server.</summary>
         public NetworkConnection connectionToClient => m_ConnectionToClient;
 
         // all spawned NetworkIdentities by netId. needed on server and client.
@@ -83,6 +96,7 @@ namespace Mirror
         // -> the solution is to serialize the string internally here and then
         //    use the real 'Guid' type for everything else via .assetId
         [SerializeField] string m_AssetId;
+        /// <summary>This identifies the prefab associated with this object (for spawning).</summary>
         public Guid assetId
         {
             get
@@ -443,22 +457,17 @@ namespace Mirror
         }
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // random number that is unlikely to appear in a regular data stream
+        const byte Barrier = 171;
 
-        // vis2k: readstring bug prevention: https://issuetracker.unity3d.com/issues/unet-networkwriter-dot-write-causing-readstring-slash-readbytes-out-of-range-errors-in-clients
-        // -> OnSerialize writes length,componentData,length,componentData,...
-        // -> OnDeserialize carefully extracts each data, then deserializes each component with separate readers
-        //    -> it will be impossible to read too many or too few bytes in OnDeserialize
+        // paul: readstring bug prevention: https://issuetracker.unity3d.com/issues/unet-networkwriter-dot-write-causing-readstring-slash-readbytes-out-of-range-errors-in-clients
+        // -> OnSerialize writes componentData, barrier, componentData, barrier,componentData,...
+        // -> OnDeserialize carefully extracts each data, then deserializes the barrier and check it
+        //    -> If we read too many or too few bytes,  the barrier is very unlikely to match
         //    -> we can properly track down errors
         internal bool OnSerializeSafely(NetworkBehaviour comp, NetworkWriter writer, bool initialState)
         {
-            // write placeholder length bytes
-            // (jumping back later is WAY faster than allocating a temporary
-            //  writer for the payload, then writing payload.size, payload)
-            int headerPosition = writer.Position;
-            writer.Write((int)0);
-            int contentPosition = writer.Position;
-
-            // write payload
+            // serialize into a temporary writer
             bool result = false;
             try
             {
@@ -469,17 +478,16 @@ namespace Mirror
                 // show a detailed error and let the user know what went wrong
                 Debug.LogError("OnSerialize failed for: object=" + name + " component=" + comp.GetType() + " sceneId=" + m_SceneId + "\n\n" + e.ToString());
             }
-            int endPosition = writer.Position;
+            if (LogFilter.Debug) { Debug.Log("OnSerializeSafely written for object=" + comp.name + " component=" + comp.GetType() + " sceneId=" + m_SceneId); }
 
-            // fill in length now
-            writer.Position = headerPosition;
-            writer.Write(endPosition - contentPosition);
-            writer.Position = endPosition;
-
-            if (LogFilter.Debug) { Debug.Log("OnSerializeSafely written for object=" + comp.name + " component=" + comp.GetType() + " sceneId=" + m_SceneId + "header@" + headerPosition + " content@" + contentPosition + " end@" + endPosition + " contentSize=" + (endPosition - contentPosition)); }
-
+            // serialize a barrier to be checked by the deserializer
+            writer.Write(Barrier);
             return result;
         }
+
+        // cache the writer so that we are not creating a new network writer
+        // for every gameobject
+        private static NetworkWriter writer ;
 
         // serialize all components (or only dirty ones if not initial state)
         // -> returns serialized data of everything dirty,  null if nothing was dirty
@@ -495,7 +503,8 @@ namespace Mirror
             if (dirtyComponentsMask == 0L)
                 return null;
 
-            NetworkWriter writer = new NetworkWriter();
+            writer = writer ?? new NetworkWriter();
+            writer.Reset();
             writer.WritePackedUInt64(dirtyComponentsMask); // WritePacked64 so we don't write full 8 bytes if we don't have to
 
             foreach (NetworkBehaviour comp in m_NetworkBehaviours)
@@ -518,7 +527,16 @@ namespace Mirror
                 }
             }
 
-            return writer.ToArray();
+            // did we write anything? then write dirty, payload and return true
+            byte[] bytes = writer.ToArray();
+
+            // original HLAPI had a warning in UNetUpdate() in case of large state updates. let's move it here, might
+            // be useful for debugging.
+            if (bytes.Length > NetworkManager.singleton.transport.GetMaxPacketSize(Channels.DefaultReliable))
+            {
+                Debug.LogWarning("Large state update of " + bytes.Length + " bytes for netId:" + netId);
+            }
+            return bytes;
         }
 
         private ulong GetDirtyMask(NetworkBehaviour[] components, bool initialState)
@@ -541,30 +559,25 @@ namespace Mirror
 
         internal void OnDeserializeSafely(NetworkBehaviour comp, NetworkReader reader, bool initialState)
         {
-            // read header as 4 bytes
-            int contentSize = reader.ReadInt32();
-
-            // read content
-            byte[] bytes = reader.ReadBytes(contentSize);
-            if (LogFilter.Debug) { Debug.Log("OnDeserializeSafely extracted: " + comp.name + " component=" + comp.GetType() + " sceneId=" + m_SceneId + " length=" + bytes.Length); }
-
+        
             // call OnDeserialize with a temporary reader, so that the
             // original one can't be messed with. we also wrap it in a
             // try-catch block so there's no way to mess up another
             // component's deserialization
             try
             {
-                NetworkReader componentReader = new NetworkReader(bytes);
-                comp.OnDeserialize(componentReader, initialState);
-                if (componentReader.Position != componentReader.Length)
+                comp.OnDeserialize(reader, initialState);
+
+                byte barrierData = reader.ReadByte();
+                if (barrierData != Barrier)
                 {
-                    Debug.LogWarning("OnDeserialize didn't read the full " + bytes.Length + " bytes for object:" + name + " component=" + comp.GetType() + " sceneId=" + m_SceneId + ". Make sure that OnSerialize and OnDeserialize write/read the same amount of data in all cases.");
+                    Debug.LogError("OnDeserialize failed for: object=" + name + " component=" + comp.GetType() + " sceneId=" + m_SceneId  + ". Possible Reasons:\n  * Do " + comp.GetType() + "'s OnSerialize and OnDeserialize calls write the same amount of data? \n  * Was there an exception in " + comp.GetType() + "'s OnSerialize/OnDeserialize code?\n  * Are the server and client the exact same project?\n  * Maybe this OnDeserialize call was meant for another GameObject? The sceneIds can easily get out of sync if the Hierarchy was modified only in the client OR the server. Try rebuilding both.\n\n" );
                 }
             }
             catch (Exception e)
             {
                 // show a detailed error and let the user know what went wrong
-                Debug.LogError("OnDeserialize failed for: object=" + name + " component=" + comp.GetType() + " sceneId=" + m_SceneId + " length=" + bytes.Length + ". Possible Reasons:\n  * Do " + comp.GetType() + "'s OnSerialize and OnDeserialize calls write the same amount of data(" + bytes.Length +" bytes)? \n  * Was there an exception in " + comp.GetType() + "'s OnSerialize/OnDeserialize code?\n  * Are the server and client the exact same project?\n  * Maybe this OnDeserialize call was meant for another GameObject? The sceneIds can easily get out of sync if the Hierarchy was modified only in the client OR the server. Try rebuilding both.\n\n" + e.ToString());
+                Debug.LogError("OnDeserialize failed for: object=" + name + " component=" + comp.GetType() + " sceneId=" + m_SceneId + ". Possible Reasons:\n  * Do " + comp.GetType() + "'s OnSerialize and OnDeserialize calls write the same amount of data? \n  * Was there an exception in " + comp.GetType() + "'s OnSerialize/OnDeserialize code?\n  * Are the server and client the exact same project?\n  * Maybe this OnDeserialize call was meant for another GameObject? The sceneIds can easily get out of sync if the Hierarchy was modified only in the client OR the server. Try rebuilding both.\n\n" + e.ToString());
             }
         }
 

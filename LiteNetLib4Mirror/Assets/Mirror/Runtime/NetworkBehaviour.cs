@@ -20,15 +20,25 @@ namespace Mirror
         // this prevents recursion when SyncVar hook functions are called.
         bool m_SyncVarGuard;
 
+        ///<summary>True if the object is controlled by the client that owns it.</summary>
         public bool localPlayerAuthority => netIdentity.localPlayerAuthority;
-        public bool isServer => netIdentity.isServer; 
-        public bool isClient => netIdentity.isClient; 
-        public bool isLocalPlayer => netIdentity.isLocalPlayer; 
+        ///<summary>True if this object is running on the server, and has been spawned.</summary>
+        public bool isServer => netIdentity.isServer;
+        ///<summary>True if the object is running on a client.</summary>
+        public bool isClient => netIdentity.isClient;
+        ///<summary>True if the object is the one that represents the player on the local machine.</summary>
+        public bool isLocalPlayer => netIdentity.isLocalPlayer;
+        ///<summary>True if the object is only running on the server, and has been spawned.</summary>
         public bool isServerOnly => isServer && !isClient;
+        ///<summary>True if the object is only running on the client.</summary>
         public bool isClientOnly => isClient && !isServer;
+        ///<summary>True if this object is the authoritative version of the object. For more info: https://vis2k.github.io/Mirror/Concepts/Authority</summary>
         public bool hasAuthority => netIdentity.hasAuthority;
-        public uint netId => netIdentity.netId; 
+        ///<summary>A unique identifier for this network object, assigned when spawned.</summary>
+        public uint netId => netIdentity.netId;
+        ///<summary>The NetworkConnection associated with this NetworkIdentity. This is only valid for player objects on a local client.</summary>
         public NetworkConnection connectionToServer => netIdentity.connectionToServer;
+        ///<summary>The NetworkConnection associated with this NetworkIdentity. This is only valid for player objects on the server.</summary>
         public NetworkConnection connectionToClient => netIdentity.connectionToClient; 
         protected ulong syncVarDirtyBits => m_SyncVarDirtyBits;
         protected bool syncVarHookGuard { get { return m_SyncVarGuard; } set { m_SyncVarGuard = value; }}
@@ -38,6 +48,7 @@ namespace Mirror
 
         // NetworkIdentity component caching for easier access
         NetworkIdentity m_netIdentity;
+        ///<summary>The NetworkIdentity attached to this object.</summary>
         public NetworkIdentity netIdentity
         {
             get
@@ -524,24 +535,36 @@ namespace Mirror
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        ///<summary>Called on clients when the server destroys the GameObject.</summary>
         public virtual void OnNetworkDestroy() {}
+        ///<summary>Called when the GameObject spawns on the server, or when the server is started for GameObjects in the scene.</summary>
         public virtual void OnStartServer() {}
+        ///<summary>Called when the GameObject spawns on the client, or when the client connects to a server for GameObject in the scene.</summary>
         public virtual void OnStartClient() {}
+        ///<summary>Called on clients for GameObjects on the local client only.</summary>
         public virtual void OnStartLocalPlayer() {}
+        ///<summary>Called when the GameObject starts with local player authority.</summary>
         public virtual void OnStartAuthority() {}
+        ///<summary>Called when the GameObject stops with local player authority.</summary>
         public virtual void OnStopAuthority() {}
 
-        // return true when overwriting so that Mirror knows that we wanted to
         // rebuild observers ourselves. otherwise it uses built in rebuild.
+        ///<summary>Called on the server when the set of observers for a GameObject is rebuilt.</summary>
+        ///<returns>Return true when overwriting so that Mirror knows that we wanted to.</returns>
         public virtual bool OnRebuildObservers(HashSet<NetworkConnection> observers, bool initialize)
         {
             return false;
         }
 
+        ///<summary>Called on the client and/or server when the visibility of a GameObject changes for the local client.</summary>
+        ///<param name="vis">New visibility state.</param>
         public virtual void OnSetLocalVisibility(bool vis)
         {
         }
 
+        ///<summary>Called on the server to check visibility state for a new client.</summary>
+        ///<param name="conn">Network connection of a player.</param>
+        ///<returns>True if the player can see this object.</returns>
         public virtual bool OnCheckObserver(NetworkConnection conn)
         {
             return true;

@@ -940,9 +940,10 @@ MonoBehaviour:
       m_Calls: []
     m_TypeName: Mirror.UnityEventInt, Mirror, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
   clientAddress: 127.0.0.1
-  serverIPv4BindAddress: 127.0.0.1
-  serverIPv6BindAddress: ::1
+  serverIPv4BindAddress: 0.0.0.0
+  serverIPv6BindAddress: '::'
   port: 7777
+  useUpnP: 1
   maxConnections: 20
   authCode: 
   packetSendMethods: 0300000002000000
@@ -969,6 +970,11 @@ MonoBehaviour:
       m_Calls: []
     m_TypeName: Mirror.LiteNetLib.UnityEventIntError, Assembly-CSharp, Version=1.0.0.0,
       Culture=neutral, PublicKeyToken=null
+  onClientDiscoveryResponse:
+    m_PersistentCalls:
+      m_Calls: []
+    m_TypeName: Mirror.LiteNetLib.UnityEventIpEndpointString, Assembly-CSharp, Version=1.0.0.0,
+      Culture=neutral, PublicKeyToken=null
 --- !u!114 &1886246553
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -987,8 +993,8 @@ MonoBehaviour:
   showDebugMessages: 0
   offlineScene: 
   onlineScene: 
-  transport: {fileID: 0}
-  networkAddress: localhost
+  transport: {fileID: 1886246552}
+  networkAddress: 127.0.0.1
   maxConnections: 4
   playerPrefab: {fileID: 1240244544407914, guid: b1651eaf8c7564a1c86031dfbb8a7b28,
     type: 2}
