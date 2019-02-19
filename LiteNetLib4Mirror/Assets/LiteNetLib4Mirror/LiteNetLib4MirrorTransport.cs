@@ -21,7 +21,7 @@ namespace Mirror.LiteNetLib
 	public class LiteNetLib4MirrorTransport : Transport
 	{
 		public static LiteNetLib4MirrorTransport Singleton;
-		public const string TransportVersion = "1.0.2";
+		public const string TransportVersion = "1.0.3";
 
 #if UNITY_EDITOR
 		[Header("Connection settings")]
@@ -597,6 +597,7 @@ namespace Mirror.LiteNetLib
 		private static void StopInternal()
 		{
 			_host.Stop();
+			_host = null;
 			State = States.Idle;
 		}
 
@@ -611,6 +612,7 @@ namespace Mirror.LiteNetLib
 			if (_forwarded)
 			{
 				NatDiscoverer.ReleaseAll();
+				_forwarded = false;
 			}
 			Singleton = null;
 			State = States.NonInitialized;
