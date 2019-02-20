@@ -1,6 +1,3 @@
-using LiteNetLib;
-using LiteNetLib.Utils;
-using Open.Nat;
 using System;
 using System.Linq;
 using System.Net;
@@ -8,7 +5,9 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
+using LiteNetLib;
+using LiteNetLib.Utils;
+using Open.Nat;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -18,10 +17,10 @@ namespace Mirror.LiteNetLib
 	[Serializable] public class UnityEventIntError : UnityEvent<int, SocketError> { }
 	[Serializable] public class UnityEventIpEndpointString : UnityEvent<IPEndPoint, string> { }
 	[RequireComponent(typeof(LiteNetLib4MirrorNetworkManager))]
-	public class LiteNetLib4MirrorTransport : Transport
+	public class LiteNetLib4MirrorTransport : Transport, ISegmentTransport
 	{
 		public static LiteNetLib4MirrorTransport Singleton;
-		public const string TransportVersion = "1.0.3";
+		public const string TransportVersion = "1.0.4";
 
 #if UNITY_EDITOR
 		[Header("Connection settings")]
@@ -106,6 +105,7 @@ namespace Mirror.LiteNetLib
 		private static bool _forwarded;
 
 		private static NetManager _host;
+		private static Thread _upnpThread;
 
 		public UnityEventError onClientSocketError;
 		public UnityEventIntError onServerSocketError;
@@ -130,7 +130,10 @@ namespace Mirror.LiteNetLib
 
 		private void LateUpdate()
 		{
-			if (_update) _host.PollEvents();
+			if (_update)
+			{
+				_host.PollEvents();
+			}
 		}
 
 		private void OnDestroy()
@@ -230,6 +233,7 @@ namespace Mirror.LiteNetLib
 
 		private static IPAddress Parse(string address)
 		{
+			// ReSharper disable once InlineOutVariableDeclaration
 			IPAddress ipAddress;
 			if (!IPAddress.TryParse(address, out ipAddress)) ipAddress = address == "localhost" ? IPAddress.Parse("127.0.0.1") : Dns.GetHostAddresses(address)[0];
 
@@ -248,38 +252,40 @@ namespace Mirror.LiteNetLib
 			if (freeport == 0) throw new Exception("No free port!");
 			return freeport;
 		}
-
-#pragma warning disable 4014
-		public static void ForwardPort()
+		
+		public static void ForwardPort(Protocol protocol = Protocol.Udp)
 		{
-			ForwardPortInternalAsync(Singleton.port);
+			ForwardPortInternal(Singleton.port, protocol);
 		}
 
-		public static void ForwardPort(ushort port)
+		public static void ForwardPort(ushort port, Protocol protocol = Protocol.Udp)
 		{
-			ForwardPortInternalAsync(port);
+			ForwardPortInternal(port, protocol);
 		}
-#pragma warning restore 4014
 
-		private static async Task ForwardPortInternalAsync(ushort port)
+		private static void ForwardPortInternal(ushort port, Protocol protocol = Protocol.Udp)
 		{
-			try
+			_upnpThread = new Thread(() =>
 			{
-				NatDiscoverer discoverer = new NatDiscoverer();
-				NatDevice device;
-				using (CancellationTokenSource cts = new CancellationTokenSource(10000))
+				try
 				{
-					device = await discoverer.DiscoverDeviceAsync(PortMapper.Upnp, cts).ConfigureAwait(false);
-				}
+					NatDiscoverer discoverer = new NatDiscoverer();
+					NatDevice device;
+					using (CancellationTokenSource cts = new CancellationTokenSource(10000))
+					{
+						device = discoverer.DiscoverDeviceAsync(PortMapper.Upnp, cts).Result;
+					}
 
-				await device.CreatePortMapAsync(new Mapping(Protocol.Udp, port, port, "LiteNetLib4Mirror UPnP")).ConfigureAwait(false);
-				_forwarded = true;
-				Debug.Log("Port forwarded successfully!");
-			}
-			catch
-			{
-				Debug.LogWarning("UPnP failed!");
-			}
+					device.CreatePortMapAsync(new Mapping(protocol, port, port, "LiteNetLib4Mirror UPnP")).RunSynchronously();
+					_forwarded = true;
+					Debug.Log("Port forwarded successfully!");
+				}
+				catch
+				{
+					Debug.LogWarning("UPnP failed!");
+				}
+			});
+			_upnpThread.Start();
 		}
 		#endregion
 
@@ -503,6 +509,7 @@ namespace Mirror.LiteNetLib
 
 		private static void ServerOnNetworkReceiveUnconnectedEvent(IPEndPoint remoteendpoint, NetPacketReader reader, UnconnectedMessageType messagetype)
 		{
+			// ReSharper disable once InlineOutVariableDeclaration
 			string response;
 			if (messagetype == UnconnectedMessageType.DiscoveryRequest && Singleton.ProcessDiscoveryRequest(remoteendpoint, reader.GetString(), out response))
 			{
@@ -596,9 +603,13 @@ namespace Mirror.LiteNetLib
 
 		private static void StopInternal()
 		{
-			_host.Stop();
-			_host = null;
-			State = States.Idle;
+			if (_host != null)
+			{
+				_host.Stop();
+				_host = null;
+				_update = false;
+				State = States.Idle;
+			}
 		}
 
 		private static string ServerGetClientAddressInteral(int connectionId)
@@ -609,6 +620,11 @@ namespace Mirror.LiteNetLib
 		private static void ShutdownInternal()
 		{
 			if (ClientConnectedInternal() || ServerActiveInternal()) StopInternal();
+			if (_upnpThread != null)
+			{
+				_upnpThread.Abort();
+				_upnpThread = null;
+			}
 			if (_forwarded)
 			{
 				NatDiscoverer.ReleaseAll();
