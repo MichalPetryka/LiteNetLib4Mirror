@@ -5,7 +5,8 @@ LiteNetLib based transport for Mirror.
 - UDP  
 - Built-in Network Discovery and UPnP  
 - Fully managed code  
-Also, since it's using LiteNetLib, it supports it's following features:  
+
+# Also, since it's using LiteNetLib, it also supports it's following features:  
 - Small CPU and RAM usage  
 - Small packet size overhead ( 1 byte for unreliable, 3 bytes for reliable packets )  
 - Different send mechanics  
