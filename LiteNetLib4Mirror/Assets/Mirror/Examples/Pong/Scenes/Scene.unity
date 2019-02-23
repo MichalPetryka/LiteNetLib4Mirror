@@ -998,7 +998,6 @@ MonoBehaviour:
   simulationMinLatency: 30
   simulationMaxLatency: 100
   discoveryEnabled: 0
-  mergeEnabled: 0
   reconnectDelay: 500
   maxConnectAttempts: 10
   onClientSocketError:

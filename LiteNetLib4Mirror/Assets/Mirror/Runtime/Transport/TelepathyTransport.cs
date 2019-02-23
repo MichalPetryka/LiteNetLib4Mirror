@@ -40,8 +40,7 @@ namespace Mirror
 
         bool ProcessClientMessage()
         {
-            Telepathy.Message message;
-            if (client.GetNextMessage(out message))
+            if (client.GetNextMessage(out Telepathy.Message message))
             {
                 switch (message.eventType)
                 {
@@ -66,6 +65,11 @@ namespace Mirror
         }
         public override void ClientDisconnect() { client.Disconnect(); }
 
+        // IMPORTANT: set script execution order to >1000 to call Transport's
+        //            LateUpdate after all others. Fixes race condition where
+        //            e.g. in uSurvival Transport would apply Cmds before
+        //            ShoulderRotation.LateUpdate, resulting in projectile
+        //            spawns at the point before shoulder rotation.
         public void LateUpdate()
         {
             // note: we need to check enabled in case we set it to false
@@ -81,8 +85,7 @@ namespace Mirror
         public override bool ServerSend(int connectionId, int channelId, byte[] data) { return server.Send(connectionId, data); }
         public bool ProcessServerMessage()
         {
-            Telepathy.Message message;
-            if (server.GetNextMessage(out message))
+            if (server.GetNextMessage(out Telepathy.Message message))
             {
                 switch (message.eventType)
                 {

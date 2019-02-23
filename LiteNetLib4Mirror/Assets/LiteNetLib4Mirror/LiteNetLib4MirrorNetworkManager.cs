@@ -1,4 +1,4 @@
-﻿using Mirror;
+using Mirror;
 using Mirror.LiteNetLib;
 using UnityEngine;
 
@@ -8,7 +8,8 @@ public class LiteNetLib4MirrorNetworkManager : NetworkManager
 	/// <summary>
 	/// Singleton of the modified NetworkManager
 	/// </summary>
-	public new static LiteNetLib4MirrorNetworkManager singleton;
+	// ReSharper disable once InconsistentNaming
+	public static new LiteNetLib4MirrorNetworkManager singleton;
 
 	public override void Awake()
 	{

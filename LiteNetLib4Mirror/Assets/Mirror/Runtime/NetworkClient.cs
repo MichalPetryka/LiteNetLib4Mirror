@@ -6,12 +6,9 @@ namespace Mirror
 {
     public class NetworkClient
     {
-        static bool s_IsActive;
-
         public static List<NetworkClient> allClients = new List<NetworkClient>();
-        public static bool active => s_IsActive;
+        public static bool active { get; private set; }
 
-        string m_ServerIp = "";
         int m_ClientId = -1;
 
         public readonly Dictionary<short, NetworkMessageDelegate> handlers = new Dictionary<short, NetworkMessageDelegate>();
@@ -31,7 +28,7 @@ namespace Mirror
             conn.SetHandlers(handlers);
         }
 
-        public string serverIp => m_ServerIp; 
+        public string serverIp { get; private set; } = "";
         public NetworkConnection connection => m_Connection;
 
         public bool isConnected => connectState == ConnectState.Connected;
@@ -61,13 +58,13 @@ namespace Mirror
             if (LogFilter.Debug) { Debug.Log("Client Connect: " + serverIp); }
 
             string hostnameOrIp = serverIp;
-            m_ServerIp = hostnameOrIp;
+            this.serverIp = hostnameOrIp;
 
             connectState = ConnectState.Connecting;
             NetworkManager.singleton.transport.ClientConnect(serverIp);
 
             // setup all the handlers
-            m_Connection = new NetworkConnection(m_ServerIp, m_ClientId, 0);
+            m_Connection = new NetworkConnection(this.serverIp, m_ClientId, 0);
             m_Connection.SetHandlers(handlers);
         }
 
@@ -246,15 +243,20 @@ namespace Mirror
 
         internal static void UpdateClients()
         {
-            // remove null clients first
-            allClients.RemoveAll(cl => cl == null);
-
-            // now update valid clients
             // IMPORTANT: no foreach, otherwise we get an InvalidOperationException
             // when stopping the client.
-            for (int i = 0; i < allClients.Count; ++i)
+            for (int i = allClients.Count - 1; i >= 0; --i)
             {
-                allClients[i].Update();
+                if (allClients[i] == null)
+                {
+                    // remove null clients first
+                    allClients.RemoveAt(i);
+                }
+                else
+                {
+                    // now update valid clients
+                    allClients[i].Update();
+                }
             }
         }
 
@@ -265,13 +267,13 @@ namespace Mirror
                 allClients[0].Shutdown();
             }
             allClients = new List<NetworkClient>();
-            s_IsActive = false;
+            active = false;
             ClientScene.Shutdown();
         }
 
         internal static void SetActive(bool state)
         {
-            s_IsActive = state;
+            active = state;
         }
     }
 }
