@@ -25,7 +25,7 @@ LiteNetLib based transport for Mirror.
 
 # Warning!
 With IL2CPP, IPv6 is only supported on Unity 2018.3.6f1 and later because of this:  
-![alt text](https://prnt.sc/mp3dxn)
+![alt text](unity2018.3.6f1il2cpp.png)
 
 # Credits
 RevenantX - for LiteNetLib  
