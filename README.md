@@ -23,7 +23,7 @@ LiteNetLib based transport for Mirror.
 - Connection statisitcs (need DEBUG or STATS_ENABLED flag)  
 - Multicasting (for discovering hosts in local network)  
 
-# Warning!
+# IL2CPP Warning!
 With IL2CPP, IPv6 is only supported on Unity 2018.3.6f1 and later because of this:  
 ![alt text](unity2018.3.6f1il2cpp.png)
 
