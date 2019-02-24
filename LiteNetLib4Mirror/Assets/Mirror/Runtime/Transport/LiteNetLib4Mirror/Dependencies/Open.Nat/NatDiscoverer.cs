@@ -26,7 +26,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 		/// <remarks>
 		/// Open.NAT only supports SourceLevels.Verbose, SourceLevels.Error, SourceLevels.Warning and SourceLevels.Information.
 		/// </remarks>
-		public readonly static TraceSource TraceSource = new TraceSource("Open.NAT");
+		public static readonly TraceSource TraceSource = new TraceSource("Open.NAT");
 
 		private static readonly Dictionary<string, NatDevice> Devices = new Dictionary<string, NatDevice>();
 

@@ -1,6 +1,6 @@
 using System;
 
-namespace Mirror.LiteNetLib4MirrorTransport
+namespace Mirror
 {
 	public interface ISegmentTransport
 	{

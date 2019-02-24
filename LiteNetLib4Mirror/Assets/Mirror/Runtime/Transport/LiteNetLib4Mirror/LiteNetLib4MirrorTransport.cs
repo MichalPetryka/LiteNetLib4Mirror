@@ -21,7 +21,7 @@ namespace Mirror.LiteNetLib4MirrorTransport
 	public class LiteNetLib4MirrorTransport : Transport, ISegmentTransport
 	{
 		public static LiteNetLib4MirrorTransport Singleton;
-		public const string TransportVersion = "1.0.6";
+		public const string TransportVersion = "1.0.7";
 
 #if UNITY_EDITOR
 		[Header("Connection settings")]

@@ -49,7 +49,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 			}
 
 			var builder = new UriBuilder("http", locationUri.Host, locationUri.Port);
-			ServiceControlUri = new Uri(builder.Uri, serviceControlUrl); ;
+			ServiceControlUri = new Uri(builder.Uri, serviceControlUrl);
 		}
 
 		public IPEndPoint HostEndPoint { get; private set; }

@@ -102,7 +102,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 					case int.MaxValue:
 						LifetimeType = MappingLifetime.Session;
 						_lifetime = 10 * 60; // ten minutes
-						_expiration = DateTime.UtcNow.AddSeconds(_lifetime);;
+						_expiration = DateTime.UtcNow.AddSeconds(_lifetime);
 						break;
 					case 0:
 						LifetimeType = MappingLifetime.Permanent;
