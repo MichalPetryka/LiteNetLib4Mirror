@@ -1,6 +1,11 @@
 # LiteNetLib4Mirror
 LiteNetLib based transport for Mirror.  
 
+# Usage
+1. Download the unitypackge from releases and import it to your project (it does not contain Mirror)  
+2. Put LiteNetLib4MirrorTransport component on gameobject with NetworkManager and assign it there  
+3. (Optional) Make your NetworkManager derrive from LiteNetLib4MirrorNetworkManager and use optional overloads from it  
+
 # Features
 - UDP  
 - Built-in Network Discovery and UPnP  
