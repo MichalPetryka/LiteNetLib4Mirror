@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Mirror.LiteNetLib4MirrorTransport
+namespace Mirror.LiteNetLib4Mirror
 {
 	[RequireComponent(typeof(LiteNetLib4MirrorTransport))]
 	public class LiteNetLib4MirrorNetworkManager : NetworkManager

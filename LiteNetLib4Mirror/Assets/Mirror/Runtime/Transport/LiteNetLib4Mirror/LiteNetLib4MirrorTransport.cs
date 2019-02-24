@@ -12,7 +12,7 @@ using LiteNetLib4Mirror.Open.Nat;
 using UnityEngine;
 using UnityEngine.Events;
 
-namespace Mirror.LiteNetLib4MirrorTransport
+namespace Mirror.LiteNetLib4Mirror
 {
 	[Serializable] public class UnityEventError : UnityEvent<SocketError> { }
 	[Serializable] public class UnityEventIntError : UnityEvent<int, SocketError> { }
@@ -21,7 +21,7 @@ namespace Mirror.LiteNetLib4MirrorTransport
 	public class LiteNetLib4MirrorTransport : Transport, ISegmentTransport
 	{
 		public static LiteNetLib4MirrorTransport Singleton;
-		public const string TransportVersion = "1.0.7";
+		public const string TransportVersion = "1.0.8";
 
 #if UNITY_EDITOR
 		[Header("Connection settings")]

@@ -2,7 +2,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace Mirror.LiteNetLib4MirrorTransport
+namespace Mirror.LiteNetLib4Mirror
 {
 	public class RenameAttribute : PropertyAttribute
 	{
