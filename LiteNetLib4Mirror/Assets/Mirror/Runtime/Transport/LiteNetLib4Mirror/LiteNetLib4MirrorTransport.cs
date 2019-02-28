@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using LiteNetLib4Mirror.Open.Nat;
@@ -142,6 +143,61 @@ namespace Mirror.LiteNetLib4Mirror
 			ClientConnected,
 			ServerActive
 		}
+
+#region Peer / Connection Management
+		private static Dictionary<int, NetPeer> _peerList;
+
+		private static int PeerFromMirrorId(int connectionId)
+		{
+			return connectionId - 1;
+		}
+
+		private static int PeerToMirrorId(int peerId)
+		{
+			return peerId + 1;
+		}
+
+		private static bool PeerAdd(NetPeer peer)
+		{
+			try
+			{
+				_peerList.Add(peer.Id, peer);
+				Debug.LogFormat("Added peerId: {0} -- {1} clients total", peer.Id, _peerList.Count);
+				return true;
+			}
+			catch
+			{
+				return false;
+			}
+		}
+
+		private static bool PeerRemove(int peerId)
+		{
+			bool success = _peerList.Remove(peerId);
+			Debug.LogFormat("Removed peerId: {0} -- {1} clients total", peerId, _peerList.Count);
+			return success;
+		}
+
+		private static bool PeerGet(int peerId, out NetPeer peer)
+		{
+			return _peerList.TryGetValue(peerId, out peer);
+		}
+
+		private static bool PeerGetByIP(IPEndPoint ip, out NetPeer peer)
+		{
+			foreach (NetPeer listPeer in _peerList.Values)
+			{
+				if (listPeer.EndPoint.Equals(ip))
+				{
+					peer = listPeer;
+					return true;
+				}
+			}
+
+			peer = null;
+			return false;
+		}
+#endregion
 
 #region Unity Functions
 		private void Awake()
@@ -360,6 +416,7 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			try
 			{
+				_peerList = new Dictionary<int, NetPeer>();
 				EventBasedNetListener listener = new EventBasedNetListener();
 				_host = new NetManager(listener);
 				listener.NetworkReceiveEvent += ClientOnNetworkReceiveEvent;
@@ -465,6 +522,7 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			try
 			{
+				_peerList = new Dictionary<int, NetPeer>();
 				_code = code;
 				EventBasedNetListener listener = new EventBasedNetListener();
 				_host = new NetManager(listener);
@@ -525,26 +583,23 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static void ServerOnPeerConnectedEvent(NetPeer peer)
 		{
-			Singleton.OnServerConnected.Invoke(peer.Id + 1);
+			PeerAdd(peer);
+			Singleton.OnServerConnected.Invoke(PeerToMirrorId(peer.Id));
 		}
 
 		private static void ServerOnNetworkReceiveEvent(NetPeer peer, NetPacketReader reader, DeliveryMethod deliverymethod)
 		{
-			Singleton.OnServerDataReceived.Invoke(peer.Id + 1, reader.GetRemainingBytes());
+			Singleton.OnServerDataReceived.Invoke(PeerToMirrorId(peer.Id), reader.GetRemainingBytes());
 			reader.Recycle();
 		}
 
 		private static void ServerOnNetworkErrorEvent(IPEndPoint endpoint, SocketError socketerror)
 		{
 			LastError = socketerror;
-			for (NetPeer peer = _host.ConnectedPeerList[0]; peer != null; peer = peer.NextPeer)
+			if (PeerGetByIP(endpoint, out NetPeer peer))
 			{
-				if (peer.EndPoint.ToString() == endpoint.ToString())
-				{
-					Singleton.OnServerError.Invoke(peer.Id + 1, new SocketException((int) socketerror));
-					Singleton.onServerSocketError.Invoke(peer.Id + 1, socketerror);
-					return;
-				}
+				Singleton.OnServerError.Invoke(PeerToMirrorId(peer.Id), new SocketException((int) socketerror));
+				Singleton.onServerSocketError.Invoke(PeerToMirrorId(peer.Id), socketerror);
 			}
 		}
 
@@ -552,7 +607,8 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			LastDisconnectError = disconnectinfo.SocketErrorCode;
 			LastDisconnectReason = disconnectinfo.Reason;
-			Singleton.OnServerDisconnected.Invoke(peer.Id + 1);
+			Singleton.OnServerDisconnected.Invoke(PeerToMirrorId(peer.Id));
+			PeerRemove(peer.Id);
 		}
 
 		private static void ServerOnConnectionRequestEvent(ConnectionRequest request)
@@ -569,12 +625,12 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static bool ServerSendInternal(int connectionId, DeliveryMethod method, byte[] data)
 		{
-			try
+			if (PeerGet(PeerFromMirrorId(connectionId), out NetPeer peer))
 			{
-				_host.ConnectedPeerList[connectionId - 1].Send(data, method);
+				peer.Send(data, method);
 				return true;
 			}
-			catch
+			else
 			{
 				return false;
 			}
@@ -582,12 +638,12 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static bool ServerSendInternal(int connectionId, DeliveryMethod method, ArraySegment<byte> data)
 		{
-			try
+			if (PeerGet(PeerFromMirrorId(connectionId), out NetPeer peer))
 			{
-				_host.ConnectedPeerList[connectionId - 1].Send(data.Array, data.Offset, data.Count, method);
+				peer.Send(data.Array, data.Offset, data.Count, method);
 				return true;
 			}
-			catch
+			else
 			{
 				return false;
 			}
@@ -595,12 +651,12 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static bool ServerDisconnectInternal(int connectionId)
 		{
-			try
+			if (PeerGet(PeerFromMirrorId(connectionId), out NetPeer peer))
 			{
-				_host.ConnectedPeerList[connectionId - 1].Disconnect();
+				peer.Disconnect();
 				return true;
 			}
-			catch
+			else
 			{
 				return false;
 			}
@@ -612,6 +668,7 @@ namespace Mirror.LiteNetLib4Mirror
 			{
 				_host.Stop();
 				_host = null;
+				_peerList = null;
 				_update = false;
 				State = States.Idle;
 			}
@@ -619,7 +676,12 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static string ServerGetClientAddressInteral(int connectionId)
 		{
-			return _host.ConnectedPeerList[connectionId - 1].EndPoint.Address.ToString();
+			if (PeerGet(PeerFromMirrorId(connectionId), out NetPeer peer))
+			{
+				return peer.EndPoint.Address.ToString();
+			}
+
+			return string.Empty;
 		}
 
 		private static void ShutdownInternal()
