@@ -187,6 +187,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public override void ClientDisconnect()
 		{
+			if (ServerActive()) return;
 			StopInternal();
 		}
 
