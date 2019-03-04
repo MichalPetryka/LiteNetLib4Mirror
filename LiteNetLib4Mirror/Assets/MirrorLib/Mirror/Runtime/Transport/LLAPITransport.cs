@@ -1,4 +1,4 @@
-// wraps UNET's LLAPI for use as HLAPI TransportLayer
+﻿// wraps UNET's LLAPI for use as HLAPI TransportLayer
 using System;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -83,7 +83,7 @@ namespace Mirror
             Debug.Log("LLAPITransport initialized!");
         }
 
-        // client //////////////////////////////////////////////////////////////
+        #region client
         public override bool ClientConnected()
         {
             return clientConnectionId != -1;
@@ -102,8 +102,8 @@ namespace Mirror
             clientId = NetworkTransport.AddHost(hostTopology, 0);
 
             clientConnectionId = NetworkTransport.Connect(clientId, address, port, 0, out error);
-            var networkError = (UnityEngine.Networking.NetworkError) error;
-            if (networkError != UnityEngine.Networking.NetworkError.Ok)
+            NetworkError networkError = (NetworkError)error;
+            if (networkError != NetworkError.Ok)
             {
                 Debug.LogWarning("NetworkTransport.Connect failed: clientId=" + clientId + " address= " + address + " port=" + port + " error=" + error);
                 clientConnectionId = -1;
@@ -127,8 +127,8 @@ namespace Mirror
             //
             // DO NOT return after error != 0. otherwise Disconnect won't be
             // registered.
-            var networkError = (UnityEngine.Networking.NetworkError)error;
-            if (networkError != UnityEngine.Networking.NetworkError.Ok)
+            NetworkError networkError = (NetworkError)error;
+            if (networkError != NetworkError.Ok)
             {
                 string message = "NetworkTransport.Receive failed: hostid=" + clientId + " connId=" + connectionId + " channelId=" + channel + " error=" + networkError;
                 OnClientError.Invoke(new Exception(message));
@@ -155,18 +155,6 @@ namespace Mirror
             return true;
         }
 
-        // IMPORTANT: set script execution order to >1000 to call Transport's
-        //            LateUpdate after all others. Fixes race condition where
-        //            e.g. in uSurvival Transport would apply Cmds before
-        //            ShoulderRotation.LateUpdate, resulting in projectile
-        //            spawns at the point before shoulder rotation.
-        public void LateUpdate()
-        {
-            // process all messages
-            while (ProcessClientMessage()) { }
-            while (ProcessServerMessage()) { }
-        }
-
         public string ClientGetAddress()
         {
             NetworkTransport.GetConnectionInfo(serverHostId, clientId, out string address, out int port, out NetworkID networkId, out NodeID node, out error);
@@ -181,14 +169,9 @@ namespace Mirror
                 clientId = -1;
             }
         }
+        #endregion
 
-        public override bool Available()
-        {
-            // websocket is available in all platforms (including webgl)
-            return useWebsockets || base.Available();
-        }
-
-        // server //////////////////////////////////////////////////////////////
+        #region server
         public override bool ServerActive()
         {
             return serverHostId != -1;
@@ -228,8 +211,8 @@ namespace Mirror
             //
             // DO NOT return after error != 0. otherwise Disconnect won't be
             // registered.
-            var networkError = (UnityEngine.Networking.NetworkError)error;
-            if (networkError != UnityEngine.Networking.NetworkError.Ok)
+            NetworkError networkError = (NetworkError)error;
+            if (networkError != NetworkError.Ok)
             {
                 string message = "NetworkTransport.Receive failed: hostid=" + serverHostId + " connId=" + connectionId + " channelId=" + channel + " error=" + networkError;
 
@@ -282,8 +265,27 @@ namespace Mirror
             serverHostId = -1;
             Debug.Log("LLAPITransport.ServerStop");
         }
+        #endregion
 
-        // common //////////////////////////////////////////////////////////////
+        #region common
+        // IMPORTANT: set script execution order to >1000 to call Transport's
+        //            LateUpdate after all others. Fixes race condition where
+        //            e.g. in uSurvival Transport would apply Cmds before
+        //            ShoulderRotation.LateUpdate, resulting in projectile
+        //            spawns at the point before shoulder rotation.
+        public void LateUpdate()
+        {
+            // process all messages
+            while (ProcessClientMessage()) {}
+            while (ProcessServerMessage()) {}
+        }
+
+        public override bool Available()
+        {
+            // websocket is available in all platforms (including webgl)
+            return useWebsockets || base.Available();
+        }
+
         public override void Shutdown()
         {
             NetworkTransport.Shutdown();
@@ -310,5 +312,6 @@ namespace Mirror
             }
             return "LLAPI (inactive/disconnected)";
         }
+        #endregion
     }
 }

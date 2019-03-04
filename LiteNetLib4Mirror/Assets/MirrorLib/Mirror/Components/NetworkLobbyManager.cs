@@ -68,6 +68,7 @@ namespace Mirror
         {
             int CurrentPlayers = 0;
             int ReadyPlayers = 0;
+
             foreach (NetworkLobbyPlayer item in lobbySlots)
             {
                 if (item != null)
@@ -77,6 +78,7 @@ namespace Mirror
                         ReadyPlayers++;
                 }
             }
+
             if (CurrentPlayers == ReadyPlayers)
                 CheckReadyToBegin();
             else
@@ -131,16 +133,6 @@ namespace Mirror
             pendingPlayers.Clear();
             allPlayersReady = true;
             OnLobbyServerPlayersReady();
-        }
-
-        public void ServerReturnToLobby()
-        {
-            if (!NetworkServer.active)
-            {
-                Debug.Log("ServerReturnToLobby called on client");
-                return;
-            }
-            ServerChangeScene(LobbyScene);
         }
 
         void CallOnClientEnterLobby()
@@ -203,7 +195,7 @@ namespace Mirror
             OnLobbyServerDisconnect(conn);
         }
 
-        public override void OnServerAddPlayer(NetworkConnection conn)
+        public override void OnServerAddPlayer(NetworkConnection conn, AddPlayerMessage extraMessage)
         {
             if (SceneManager.GetActiveScene().name != LobbyScene) return;
 
@@ -211,7 +203,7 @@ namespace Mirror
 
             allPlayersReady = false;
 
-            if (LogFilter.Debug) Debug.LogFormat("NetworkLobbyManager:OnServerAddPlayer playerPrefab:{0}", lobbyPlayerPrefab.name);
+            if (LogFilter.Debug) Debug.LogFormat("NetworkLobbyManager.OnServerAddPlayer playerPrefab:{0}", lobbyPlayerPrefab.name);
 
             GameObject newLobbyGameObject = OnLobbyServerCreateLobbyPlayer(conn);
             if (newLobbyGameObject == null)
@@ -291,13 +283,6 @@ namespace Mirror
             }
 
             OnLobbyServerSceneChanged(sceneName);
-        }
-
-        void OnServerReturnToLobbyMessage(NetworkMessage netMsg)
-        {
-            if (LogFilter.Debug) Debug.Log("NetworkLobbyManager OnServerReturnToLobbyMessage");
-
-            ServerReturnToLobby();
         }
 
         public override void OnStartServer()
@@ -415,17 +400,17 @@ namespace Mirror
 
         #region lobby server virtuals
 
-        public virtual void OnLobbyStartHost() { }
+        public virtual void OnLobbyStartHost() {}
 
-        public virtual void OnLobbyStopHost() { }
+        public virtual void OnLobbyStopHost() {}
 
-        public virtual void OnLobbyStartServer() { }
+        public virtual void OnLobbyStartServer() {}
 
-        public virtual void OnLobbyServerConnect(NetworkConnection conn) { }
+        public virtual void OnLobbyServerConnect(NetworkConnection conn) {}
 
-        public virtual void OnLobbyServerDisconnect(NetworkConnection conn) { }
+        public virtual void OnLobbyServerDisconnect(NetworkConnection conn) {}
 
-        public virtual void OnLobbyServerSceneChanged(string sceneName) { }
+        public virtual void OnLobbyServerSceneChanged(string sceneName) {}
 
         public virtual GameObject OnLobbyServerCreateLobbyPlayer(NetworkConnection conn)
         {
@@ -453,22 +438,22 @@ namespace Mirror
 
         #region lobby client virtuals
 
-        public virtual void OnLobbyClientEnter() { }
+        public virtual void OnLobbyClientEnter() {}
 
-        public virtual void OnLobbyClientExit() { }
+        public virtual void OnLobbyClientExit() {}
 
-        public virtual void OnLobbyClientConnect(NetworkConnection conn) { }
+        public virtual void OnLobbyClientConnect(NetworkConnection conn) {}
 
-        public virtual void OnLobbyClientDisconnect(NetworkConnection conn) { }
+        public virtual void OnLobbyClientDisconnect(NetworkConnection conn) {}
 
-        public virtual void OnLobbyStartClient(NetworkClient lobbyClient) { }
+        public virtual void OnLobbyStartClient(NetworkClient lobbyClient) {}
 
-        public virtual void OnLobbyStopClient() { }
+        public virtual void OnLobbyStopClient() {}
 
-        public virtual void OnLobbyClientSceneChanged(NetworkConnection conn) { }
+        public virtual void OnLobbyClientSceneChanged(NetworkConnection conn) {}
 
         // for users to handle adding a player failed on the server
-        public virtual void OnLobbyClientAddPlayerFailed() { }
+        public virtual void OnLobbyClientAddPlayerFailed() {}
 
         #endregion
 

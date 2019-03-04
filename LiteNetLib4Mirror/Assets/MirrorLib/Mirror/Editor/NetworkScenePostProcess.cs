@@ -1,4 +1,3 @@
-using System.Text;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
@@ -102,7 +101,7 @@ namespace Mirror
             // problem:
             //   * FindObjectsOfType order is not guaranteed. restarting the
             //     editor results in a different order
-            //   * connecting to a build again would cause UNET to deserialize
+            //   * connecting to a build again would cause Mirror to deserialize
             //     the wrong objects, causing all kinds of weird errors like
             //     'ReadString out of range'
             //
@@ -184,7 +183,7 @@ namespace Mirror
 
                 uint offset = (uint)identity.gameObject.scene.buildIndex * offsetPerScene;
                 identity.ForceSceneId(offset + nextSceneId++);
-                if (LogFilter.Debug) { Debug.Log("PostProcess sceneid assigned: name=" + identity.name + " scene=" + identity.gameObject.scene.name + " sceneid=" + identity.sceneId); }
+                if (LogFilter.Debug) Debug.Log("PostProcess sceneid assigned: name=" + identity.name + " scene=" + identity.gameObject.scene.name + " sceneid=" + identity.sceneId);
 
                 // disable it AFTER assigning the sceneId.
                 // -> this way NetworkIdentity.OnDisable adds itself to the

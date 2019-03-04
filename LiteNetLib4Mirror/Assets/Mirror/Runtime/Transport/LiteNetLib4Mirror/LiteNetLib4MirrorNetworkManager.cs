@@ -13,9 +13,9 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public override void Awake()
 		{
+			base.Awake();
 			singleton = this;
 			NetworkManager.singleton = this;
-			base.Awake();
 		}
 
 		/// <summary>
@@ -35,12 +35,12 @@ namespace Mirror.LiteNetLib4Mirror
 		}
 
 #if DISABLE_IPV6
-	/// <summary>
-	/// Start Host with provided bind address, port and connection limit
-	/// </summary>
-	/// <param name="serverIPv4BindAddress">IPv4 bind address</param>
-	/// <param name="port">Port</param>
-	/// <param name="maxPlayers">Connection limit</param>
+		/// <summary>
+		/// Start Host with provided bind address, port and connection limit
+		/// </summary>
+		/// <param name="serverIPv4BindAddress">IPv4 bind address</param>
+		/// <param name="port">Port</param>
+		/// <param name="maxPlayers">Connection limit</param>
 #else
 		/// <summary>
 		/// Start Host with provided bind addresses, port and connection limit
@@ -51,7 +51,7 @@ namespace Mirror.LiteNetLib4Mirror
 		/// <param name="maxPlayers">Connection limit</param>
 #endif
 #if DISABLE_IPV6
-	public NetworkClient StartHost(string serverIPv4BindAddress, ushort port, ushort maxPlayers)
+		public NetworkClient StartHost(string serverIPv4BindAddress, ushort port, ushort maxPlayers)
 #else
 		public NetworkClient StartHost(string serverIPv4BindAddress, string serverIPv6BindAddress, ushort port, ushort maxPlayers)
 #endif
@@ -70,12 +70,12 @@ namespace Mirror.LiteNetLib4Mirror
 		}
 
 #if DISABLE_IPV6
-	/// <summary>
-	/// Start Server with provided bind address, port and connection limit
-	/// </summary>
-	/// <param name="serverIPv4BindAddress">IPv4 bind address</param>
-	/// <param name="port">Port</param>
-	/// <param name="maxPlayers">Connection limit</param>
+		/// <summary>
+		/// Start Server with provided bind address, port and connection limit
+		/// </summary>
+		/// <param name="serverIPv4BindAddress">IPv4 bind address</param>
+		/// <param name="port">Port</param>
+		/// <param name="maxPlayers">Connection limit</param>
 #else
 		/// <summary>
 		/// Start Server with provided bind addresses, port and connection limit
@@ -86,7 +86,7 @@ namespace Mirror.LiteNetLib4Mirror
 		/// <param name="maxPlayers">Connection limit</param>
 #endif
 #if DISABLE_IPV6
-	public bool StartServer(string serverIPv4BindAddress, ushort port, ushort maxPlayers)
+		public bool StartServer(string serverIPv4BindAddress, ushort port, ushort maxPlayers)
 #else
 		public bool StartServer(string serverIPv4BindAddress, string serverIPv6BindAddress, ushort port, ushort maxPlayers)
 #endif

@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -25,10 +24,7 @@ namespace Mirror
             if (isClient) SceneManager.sceneLoaded += ClientLoadedScene;
 
             if (NetworkManager.singleton as NetworkLobbyManager)
-            {
-                ReadyToBegin = false;
                 OnClientEnterLobby();
-            }
             else
                 Debug.LogError("LobbyPlayer could not find a NetworkLobbyManager. The LobbyPlayer requires a NetworkLobbyManager object to function. Make sure that there is one in the scene.");
         }
@@ -38,10 +34,10 @@ namespace Mirror
             SceneManager.sceneLoaded -= ClientLoadedScene;
         }
 
-        void ClientLoadedScene(Scene arg0, LoadSceneMode arg1)
+        public virtual void ClientLoadedScene(Scene arg0, LoadSceneMode arg1)
         {
             NetworkLobbyManager lobby = NetworkManager.singleton as NetworkLobbyManager;
-            if (lobby && SceneManager.GetActiveScene().name == lobby.LobbyScene)
+            if (lobby != null && SceneManager.GetActiveScene().name == lobby.LobbyScene)
                 return;
 
             if (this != null && isLocalPlayer)
@@ -65,11 +61,11 @@ namespace Mirror
 
         #region lobby client virtuals
 
-        public virtual void OnClientEnterLobby() { }
+        public virtual void OnClientEnterLobby() {}
 
-        public virtual void OnClientExitLobby() { }
+        public virtual void OnClientExitLobby() {}
 
-        public virtual void OnClientReady(bool readyState) { }
+        public virtual void OnClientReady(bool readyState) {}
 
         #endregion
 
@@ -91,7 +87,7 @@ namespace Mirror
 
                 GUILayout.BeginArea(new Rect(20f + (Index * 100), 200f, 90f, 130f));
 
-                GUILayout.Label(String.Format("Player [{0}]", Index + 1));
+                GUILayout.Label($"Player [{Index + 1}]");
 
                 if (ReadyToBegin)
                     GUILayout.Label("Ready");

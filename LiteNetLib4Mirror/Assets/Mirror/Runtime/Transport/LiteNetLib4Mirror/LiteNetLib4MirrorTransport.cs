@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -21,7 +22,7 @@ namespace Mirror.LiteNetLib4Mirror
 	public class LiteNetLib4MirrorTransport : Transport, ISegmentTransport
 	{
 		public static LiteNetLib4MirrorTransport Singleton;
-		public const string TransportVersion = "1.0.8";
+		public const string TransportVersion = "1.0.9";
 
 #if UNITY_EDITOR
 		[Header("Connection settings")]
@@ -124,33 +125,34 @@ namespace Mirror.LiteNetLib4Mirror
 		public UnityEventIpEndpointString onClientDiscoveryResponse;
 
 		public static States State { get; private set; } = States.NonInitialized;
-
 		public static SocketError LastError { get; private set; }
 		public static SocketError LastDisconnectError { get; private set; }
 		public static DisconnectReason LastDisconnectReason { get; private set; }
 
-		private static NetManager _host;
+		public static NetManager Host { get; private set; }
+		public static bool UpnpFailed { get; private set; }
+
+		private static readonly Dictionary<int, NetPeer> Peers = new Dictionary<int, NetPeer>();
+		private static readonly NetDataWriter DataWriter = new NetDataWriter();
 		private static string _code;
 		private static bool _update;
-		private static bool _awaked;
-		private static bool _forwarded;
+		private static ushort _lastForwardedPort;
 
 		public enum States
 		{
 			NonInitialized,
 			Idle,
-			ClientConnected,
-			ServerActive
+			Client,
+			Server
 		}
 
 #region Unity Functions
 		private void Awake()
 		{
-			if (!_awaked)
+			if (Singleton == null)
 			{
 				Singleton = this;
 				State = States.Idle;
-				_awaked = true;
 			}
 		}
 
@@ -158,13 +160,18 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			if (_update)
 			{
-				_host.PollEvents();
+				Host.PollEvents();
 			}
 		}
 
 		private void OnDestroy()
 		{
-			ShutdownInternal();
+			StopInternal();
+			if (_lastForwardedPort != 0)
+			{
+				NatDiscoverer.ReleaseAll();
+				_lastForwardedPort = 0;
+			}
 		}
 #endregion
 
@@ -187,7 +194,10 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public override void ClientDisconnect()
 		{
-			StopInternal();
+			if (!ServerActiveInternal())
+			{
+				StopInternal();
+			}
 		}
 
 		public override bool ServerActive()
@@ -207,7 +217,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public override bool ServerDisconnect(int connectionId)
 		{
-			return ServerDisconnectInternal(connectionId);
+			return connectionId == 0 || ServerDisconnectInternal(connectionId);
 		}
 
 		public override void ServerStop()
@@ -222,7 +232,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public override void Shutdown()
 		{
-			ShutdownInternal();
+			StopInternal();
 		}
 
 		public override int GetMaxPacketSize(int channelId = Channels.DefaultReliable)
@@ -293,6 +303,11 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			try
 			{
+				if (_lastForwardedPort == port || UpnpFailed) return;
+				if (_lastForwardedPort != 0)
+				{
+					NatDiscoverer.ReleaseAll();
+				}
 				NatDiscoverer discoverer = new NatDiscoverer();
 				NatDevice device;
 				using (CancellationTokenSource cts = new CancellationTokenSource(10000))
@@ -301,12 +316,13 @@ namespace Mirror.LiteNetLib4Mirror
 				}
 
 				await device.CreatePortMapAsync(new Mapping(networkProtocolType, port, port, "LiteNetLib4Mirror UPnP")).ConfigureAwait(false);
-				_forwarded = true;
+				_lastForwardedPort = port;
 				Debug.Log("Port forwarded successfully!");
 			}
 			catch
 			{
 				Debug.LogWarning("UPnP failed!");
+				UpnpFailed = true;
 			}
 		}
 		#endregion
@@ -318,9 +334,11 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public static void SendDiscoveryRequest(string text)
 		{
+			DataWriter.Reset();
+			DataWriter.Put(text);
 			if (Singleton.discoveryEnabled)
 			{
-				_host?.SendDiscoveryRequest(NetDataWriter.FromString(text), Singleton.port);
+				Host?.SendDiscoveryRequest(DataWriter, Singleton.port);
 			}
 		}
 
@@ -337,9 +355,9 @@ namespace Mirror.LiteNetLib4Mirror
 					return "LiteNetLib4Mirror isn't initialized";
 				case States.Idle:
 					return "LiteNetLib4Mirror Transport idle";
-				case States.ClientConnected:
+				case States.Client:
 					return $"LiteNetLib4Mirror Client Connected to {Singleton.clientAddress}:{Singleton.port}";
-				case States.ServerActive:
+				case States.Server:
 #if DISABLE_IPV6
 					return $"LiteNetLib4Mirror Server active at IPv4:{Singleton.serverIPv4BindAddress} Port:{Singleton.port}";
 #else
@@ -350,9 +368,24 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 		}
 
+		private static void SetParameters()
+		{
+			Host.UpdateTime = Singleton.updateTime;
+			Host.PingInterval = Singleton.pingInterval;
+			Host.DisconnectTimeout = Singleton.disconnectTimeout;
+			Host.SimulatePacketLoss = Singleton.simulatePacketLoss;
+			Host.SimulateLatency = Singleton.simulateLatency;
+			Host.SimulationPacketLossChance = Singleton.simulationPacketLossChance;
+			Host.SimulationMinLatency = Singleton.simulationMinLatency;
+			Host.SimulationMaxLatency = Singleton.simulationMaxLatency;
+			Host.DiscoveryEnabled = Singleton.discoveryEnabled;
+			Host.ReconnectDelay = Singleton.reconnectDelay;
+			Host.MaxConnectAttempts = Singleton.maxConnectAttempts;
+		}
+
 		private static bool ClientConnectedInternal()
 		{
-			return State == States.ClientConnected;
+			return State == States.Client;
 		}
 
 		private static void ClientConnectInternal(string code)
@@ -360,7 +393,7 @@ namespace Mirror.LiteNetLib4Mirror
 			try
 			{
 				EventBasedNetListener listener = new EventBasedNetListener();
-				_host = new NetManager(listener);
+				Host = new NetManager(listener);
 				listener.NetworkReceiveEvent += ClientOnNetworkReceiveEvent;
 				listener.NetworkErrorEvent += ClientOnNetworkErrorEvent;
 				listener.PeerConnectedEvent += ClientOnPeerConnectedEvent;
@@ -369,24 +402,14 @@ namespace Mirror.LiteNetLib4Mirror
 				{
 					listener.NetworkReceiveUnconnectedEvent += ClientOnNetworkReceiveUnconnectedEvent;
 				}
-				
-				_host.UpdateTime = Singleton.updateTime;
-				_host.PingInterval = Singleton.pingInterval;
-				_host.DisconnectTimeout = Singleton.disconnectTimeout;
-				_host.SimulatePacketLoss = Singleton.simulatePacketLoss;
-				_host.SimulateLatency = Singleton.simulateLatency;
-				_host.SimulationPacketLossChance = Singleton.simulationPacketLossChance;
-				_host.SimulationMinLatency = Singleton.simulationMinLatency;
-				_host.SimulationMaxLatency = Singleton.simulationMaxLatency;
-				_host.DiscoveryEnabled = Singleton.discoveryEnabled;
-				_host.ReconnectDelay = Singleton.reconnectDelay;
-				_host.MaxConnectAttempts = Singleton.maxConnectAttempts;
 
-				_host.Start();
-				_host.Connect(new IPEndPoint(Parse(Singleton.clientAddress), Singleton.port), code);
+				SetParameters();
+
+				Host.Start();
+				Host.Connect(new IPEndPoint(Parse(Singleton.clientAddress), Singleton.port), code);
 
 				_update = true;
-				State = States.ClientConnected;
+				State = States.Client;
 			}
 			catch (Exception ex)
 			{
@@ -433,7 +456,7 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			try
 			{
-				_host.FirstPeer.Send(data, method);
+				Host.FirstPeer.Send(data, method);
 				return true;
 			}
 			catch
@@ -446,7 +469,7 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			try
 			{
-				_host.FirstPeer.Send(data.Array, data.Offset, data.Count, method);
+				Host.FirstPeer.Send(data.Array, data.Offset, data.Count, method);
 				return true;
 			}
 			catch
@@ -457,7 +480,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static bool ServerActiveInternal()
 		{
-			return State == States.ServerActive;
+			return State == States.Server;
 		}
 
 		private static void ServerStartInternal(string code)
@@ -466,7 +489,7 @@ namespace Mirror.LiteNetLib4Mirror
 			{
 				_code = code;
 				EventBasedNetListener listener = new EventBasedNetListener();
-				_host = new NetManager(listener);
+				Host = new NetManager(listener);
 				listener.ConnectionRequestEvent += ServerOnConnectionRequestEvent;
 				listener.PeerDisconnectedEvent += ServerOnPeerDisconnectedEvent;
 				listener.NetworkErrorEvent += ServerOnNetworkErrorEvent;
@@ -476,29 +499,19 @@ namespace Mirror.LiteNetLib4Mirror
 				{
 					listener.NetworkReceiveUnconnectedEvent += ServerOnNetworkReceiveUnconnectedEvent;
 				}
-				
-				_host.UpdateTime = Singleton.updateTime;
-				_host.PingInterval = Singleton.pingInterval;
-				_host.DisconnectTimeout = Singleton.disconnectTimeout;
-				_host.SimulatePacketLoss = Singleton.simulatePacketLoss;
-				_host.SimulateLatency = Singleton.simulateLatency;
-				_host.SimulationPacketLossChance = Singleton.simulationPacketLossChance;
-				_host.SimulationMinLatency = Singleton.simulationMinLatency;
-				_host.SimulationMaxLatency = Singleton.simulationMaxLatency;
-				_host.DiscoveryEnabled = Singleton.discoveryEnabled;
-				_host.ReconnectDelay = Singleton.reconnectDelay;
-				_host.MaxConnectAttempts = Singleton.maxConnectAttempts;
-				if (Singleton.useUpnP && !_forwarded)
+
+				SetParameters();
+				if (Singleton.useUpnP)
 				{
 					ForwardPort();
 				}
 #if DISABLE_IPV6
-				_host.Start(Parse(Singleton.serverIPv4BindAddress), Parse("::1"), Singleton.port);
+				Host.Start(Parse(Singleton.serverIPv4BindAddress), Parse("::1"), Singleton.port);
 #else
-				_host.Start(Parse(Singleton.serverIPv4BindAddress), Parse(Singleton.serverIPv6BindAddress), Singleton.port);
+				Host.Start(Parse(Singleton.serverIPv4BindAddress), Parse(Singleton.serverIPv6BindAddress), Singleton.port);
 #endif
 				_update = true;
-				State = States.ServerActive;
+				State = States.Server;
 			}
 			catch (Exception ex)
 			{
@@ -517,13 +530,16 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			if (messagetype == UnconnectedMessageType.DiscoveryRequest && Singleton.ProcessDiscoveryRequest(remoteendpoint, reader.GetString(), out string response))
 			{
-				_host.SendDiscoveryResponse(NetDataWriter.FromString(response), remoteendpoint);
+				DataWriter.Reset();
+				DataWriter.Put(response);
+				Host.SendDiscoveryResponse(DataWriter, remoteendpoint);
 			}
 			reader.Recycle();
 		}
 
 		private static void ServerOnPeerConnectedEvent(NetPeer peer)
 		{
+			Peers.Add(peer.Id + 1, peer);
 			Singleton.OnServerConnected.Invoke(peer.Id + 1);
 		}
 
@@ -536,7 +552,7 @@ namespace Mirror.LiteNetLib4Mirror
 		private static void ServerOnNetworkErrorEvent(IPEndPoint endpoint, SocketError socketerror)
 		{
 			LastError = socketerror;
-			for (NetPeer peer = _host.ConnectedPeerList[0]; peer != null; peer = peer.NextPeer)
+			for (NetPeer peer = Host.FirstPeer; peer != null; peer = peer.NextPeer)
 			{
 				if (peer.EndPoint.ToString() == endpoint.ToString())
 				{
@@ -551,12 +567,13 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			LastDisconnectError = disconnectinfo.SocketErrorCode;
 			LastDisconnectReason = disconnectinfo.Reason;
+			Peers.Remove(peer.Id + 1);
 			Singleton.OnServerDisconnected.Invoke(peer.Id + 1);
 		}
 
 		private static void ServerOnConnectionRequestEvent(ConnectionRequest request)
 		{
-			if (_host.PeersCount >= Singleton.maxConnections)
+			if (Host.PeersCount >= Singleton.maxConnections)
 			{
 				request.Reject();
 			}
@@ -570,7 +587,7 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			try
 			{
-				_host.ConnectedPeerList[connectionId - 1].Send(data, method);
+				Peers[connectionId].Send(data, method);
 				return true;
 			}
 			catch
@@ -583,7 +600,7 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			try
 			{
-				_host.ConnectedPeerList[connectionId - 1].Send(data.Array, data.Offset, data.Count, method);
+				Peers[connectionId].Send(data.Array, data.Offset, data.Count, method);
 				return true;
 			}
 			catch
@@ -596,7 +613,7 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			try
 			{
-				_host.ConnectedPeerList[connectionId - 1].Disconnect();
+				Peers[connectionId].Disconnect();
 				return true;
 			}
 			catch
@@ -607,10 +624,12 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static void StopInternal()
 		{
-			if (_host != null)
+			if (Host != null)
 			{
-				_host.Stop();
-				_host = null;
+				Peers.Clear();
+				Host.Flush();
+				Host.Stop();
+				Host = null;
 				_update = false;
 				State = States.Idle;
 			}
@@ -618,47 +637,22 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static string ServerGetClientAddressInteral(int connectionId)
 		{
-			return _host.ConnectedPeerList[connectionId - 1].EndPoint.Address.ToString();
-		}
-
-		private static void ShutdownInternal()
-		{
-			StopInternal();
-			if (_forwarded)
-			{
-				NatDiscoverer.ReleaseAll();
-				_forwarded = false;
-			}
-			Singleton = null;
-			State = States.NonInitialized;
+			return Peers[connectionId].EndPoint.Address.ToString();
 		}
 
 		private static int GetMaxPacketSizeInternal(DeliveryMethod channel)
 		{
-			if (_host?.FirstPeer != null)
-			{
-				switch (channel)
-				{
-					case DeliveryMethod.ReliableOrdered:
-					case DeliveryMethod.ReliableUnordered:
-						return ushort.MaxValue * (_host.FirstPeer.Mtu - NetConstants.FragmentHeaderSize);
-					case DeliveryMethod.ReliableSequenced:
-					case DeliveryMethod.Sequenced:
-						return _host.FirstPeer.Mtu - NetConstants.SequencedHeaderSize;
-					default:
-						return _host.FirstPeer.Mtu - NetConstants.HeaderSize;
-				}
-			}
+			int mtu = Host?.FirstPeer != null ? Host.FirstPeer.Mtu : NetConstants.MaxPacketSize;
 			switch (channel)
 			{
 				case DeliveryMethod.ReliableOrdered:
 				case DeliveryMethod.ReliableUnordered:
-					return ushort.MaxValue * (NetConstants.MaxPacketSize - NetConstants.FragmentHeaderSize);
+					return ushort.MaxValue * (mtu - NetConstants.FragmentHeaderSize);
 				case DeliveryMethod.ReliableSequenced:
 				case DeliveryMethod.Sequenced:
-					return NetConstants.MaxPacketSize - NetConstants.SequencedHeaderSize;
+					return mtu - NetConstants.SequencedHeaderSize;
 				default:
-					return NetConstants.MaxPacketSize - NetConstants.HeaderSize;
+					return mtu - NetConstants.HeaderSize;
 			}
 		}
 	}
