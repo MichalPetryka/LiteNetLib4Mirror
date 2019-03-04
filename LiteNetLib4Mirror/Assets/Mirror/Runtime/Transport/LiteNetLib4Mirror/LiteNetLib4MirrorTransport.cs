@@ -334,10 +334,10 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public static void SendDiscoveryRequest(string text)
 		{
-			DataWriter.Reset();
-			DataWriter.Put(text);
 			if (Singleton.discoveryEnabled)
 			{
+				DataWriter.Reset();
+				DataWriter.Put(text);
 				Host?.SendDiscoveryRequest(DataWriter, Singleton.port);
 			}
 		}
