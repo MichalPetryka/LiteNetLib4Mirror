@@ -51,7 +51,10 @@ namespace Mirror.LiteNetLib4Mirror
 		public DeliveryMethod[] channels =
 		{
 			DeliveryMethod.ReliableOrdered,
-			DeliveryMethod.Sequenced
+			DeliveryMethod.Unreliable,
+			DeliveryMethod.Sequenced,
+			DeliveryMethod.ReliableSequenced,
+			DeliveryMethod.ReliableUnordered
 		};
 
 #if UNITY_EDITOR
