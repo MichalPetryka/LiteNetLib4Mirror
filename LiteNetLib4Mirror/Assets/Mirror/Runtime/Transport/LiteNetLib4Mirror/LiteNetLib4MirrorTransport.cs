@@ -22,7 +22,7 @@ namespace Mirror.LiteNetLib4Mirror
 	public class LiteNetLib4MirrorTransport : Transport, ISegmentTransport
 	{
 		public static LiteNetLib4MirrorTransport Singleton;
-		public const string TransportVersion = "1.0.9";
+		public const string TransportVersion = "1.1.0";
 
 #if UNITY_EDITOR
 		[Header("Connection settings")]
@@ -137,6 +137,7 @@ namespace Mirror.LiteNetLib4Mirror
 		private static string _code;
 		private static bool _update;
 		private static ushort _lastForwardedPort;
+		private static string _lastDiscoveryMessage;
 
 		public enum States
 		{
@@ -189,7 +190,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public override bool ClientSend(int channelId, byte[] data)
 		{
-			return ClientSendInternal(channels[channelId], data);
+			return ClientSendInternal(channels[channelId], data, 0, data.Length);
 		}
 
 		public override void ClientDisconnect()
@@ -212,7 +213,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public override bool ServerSend(int connectionId, int channelId, byte[] data)
 		{
-			return ServerSendInternal(connectionId, channels[channelId], data);
+			return ServerSendInternal(connectionId, channels[channelId], data, 0, data.Length);
 		}
 
 		public override bool ServerDisconnect(int connectionId)
@@ -244,12 +245,12 @@ namespace Mirror.LiteNetLib4Mirror
 #region ISegmentTransport
 		public bool ClientSend(int channelId, ArraySegment<byte> data)
 		{
-			return ClientSendInternal(channels[channelId], data);
+			return ClientSendInternal(channels[channelId], data.Array, data.Offset, data.Count);
 		}
 
 		public bool ServerSend(int connectionId, int channelId, ArraySegment<byte> data)
 		{
-			return ServerSendInternal(connectionId, channels[channelId], data);
+			return ServerSendInternal(connectionId, channels[channelId], data.Array, data.Offset, data.Count);
 		}
 #endregion
 
@@ -336,8 +337,12 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			if (Singleton.discoveryEnabled)
 			{
-				DataWriter.Reset();
-				DataWriter.Put(text);
+				if (_lastDiscoveryMessage != text)
+				{
+					_lastDiscoveryMessage = text;
+					DataWriter.Reset();
+					DataWriter.Put(text);
+				}
 				Host?.SendDiscoveryRequest(DataWriter, Singleton.port);
 			}
 		}
@@ -452,24 +457,11 @@ namespace Mirror.LiteNetLib4Mirror
 			Singleton.onClientSocketError.Invoke(socketerror);
 		}
 
-		private static bool ClientSendInternal(DeliveryMethod method, byte[] data)
+		private static bool ClientSendInternal(DeliveryMethod method, byte[] data, int start, int length)
 		{
 			try
 			{
-				Host.FirstPeer.Send(data, method);
-				return true;
-			}
-			catch
-			{
-				return false;
-			}
-		}
-
-		private static bool ClientSendInternal(DeliveryMethod method, ArraySegment<byte> data)
-		{
-			try
-			{
-				Host.FirstPeer.Send(data.Array, data.Offset, data.Count, method);
+				Host.FirstPeer.Send(data, start, length, method);
 				return true;
 			}
 			catch
@@ -530,8 +522,12 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			if (messagetype == UnconnectedMessageType.DiscoveryRequest && Singleton.ProcessDiscoveryRequest(remoteendpoint, reader.GetString(), out string response))
 			{
-				DataWriter.Reset();
-				DataWriter.Put(response);
+				if (_lastDiscoveryMessage != response)
+				{
+					_lastDiscoveryMessage = response;
+					DataWriter.Reset();
+					DataWriter.Put(response);
+				}
 				Host.SendDiscoveryResponse(DataWriter, remoteendpoint);
 			}
 			reader.Recycle();
@@ -567,8 +563,8 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			LastDisconnectError = disconnectinfo.SocketErrorCode;
 			LastDisconnectReason = disconnectinfo.Reason;
-			Peers.Remove(peer.Id + 1);
 			Singleton.OnServerDisconnected.Invoke(peer.Id + 1);
+			Peers.Remove(peer.Id + 1);
 		}
 
 		private static void ServerOnConnectionRequestEvent(ConnectionRequest request)
@@ -583,24 +579,11 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 		}
 
-		private static bool ServerSendInternal(int connectionId, DeliveryMethod method, byte[] data)
+		private static bool ServerSendInternal(int connectionId, DeliveryMethod method, byte[] data, int start, int length)
 		{
 			try
 			{
-				Peers[connectionId].Send(data, method);
-				return true;
-			}
-			catch
-			{
-				return false;
-			}
-		}
-
-		private static bool ServerSendInternal(int connectionId, DeliveryMethod method, ArraySegment<byte> data)
-		{
-			try
-			{
-				Peers[connectionId].Send(data.Array, data.Offset, data.Count, method);
+				Peers[connectionId].Send(data, start, length, method);
 				return true;
 			}
 			catch
@@ -642,7 +625,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static int GetMaxPacketSizeInternal(DeliveryMethod channel)
 		{
-			int mtu = Host?.FirstPeer != null ? Host.FirstPeer.Mtu : NetConstants.MaxPacketSize;
+			int mtu = Host?.FirstPeer?.Mtu ?? NetConstants.MaxPacketSize;
 			switch (channel)
 			{
 				case DeliveryMethod.ReliableOrdered:
