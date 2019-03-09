@@ -2,7 +2,6 @@
 using System.ComponentModel;
 using System.Net;
 using UnityEngine;
-using UnityEngine.Events;
 
 namespace Mirror.LiteNetLib4Mirror
 {
@@ -67,22 +66,23 @@ namespace Mirror.LiteNetLib4Mirror
 		IEnumerator StartDiscovery()
 		{
 			_noDiscovering = false;
-			UnityAction<IPEndPoint, string> onClientDiscoveryResponse = (endpoint, text) =>
-			{
-				var ip = endpoint.Address.ToString();
-				var port = (ushort)endpoint.Port;
-				(_manager as LiteNetLib4MirrorNetworkManager)?.StartClient(ip, port);
-				_noDiscovering = true;
-			};
 
-			LiteNetLib4MirrorDiscovery.Singleton.onDiscoveryResponse.AddListener(onClientDiscoveryResponse);
+			LiteNetLib4MirrorDiscovery.Singleton.onDiscoveryResponse.AddListener(OnClientDiscoveryResponse);
 			while (!_noDiscovering)
 			{
 				LiteNetLib4MirrorDiscovery.SendDiscoveryRequest(string.Empty);
 				yield return new WaitForSeconds(discoveryInterval);
 			}
 
-			LiteNetLib4MirrorDiscovery.Singleton.onDiscoveryResponse.RemoveListener(onClientDiscoveryResponse);
+			LiteNetLib4MirrorDiscovery.Singleton.onDiscoveryResponse.RemoveListener(OnClientDiscoveryResponse);
+		}
+
+		void OnClientDiscoveryResponse(IPEndPoint endpoint, string text)
+		{
+			var ip = endpoint.Address.ToString();
+			var port = (ushort)endpoint.Port;
+			(_manager as LiteNetLib4MirrorNetworkManager)?.StartClient(ip, port);
+			_noDiscovering = true;
 		}
 	}
 }
