@@ -31,6 +31,7 @@ LiteNetLib based transport for Mirror.
 # IL2CPP Warning!
 With IL2CPP, IPv6 is only supported on Unity 2018.3.6f1 and later because of this:  
 ![alt text](unity2018.3.6f1il2cpp.png)
+Also, aocket Reuse Address option isn't available in IL2CPP.   
 
 # Credits
 RevenantX - for LiteNetLib  
