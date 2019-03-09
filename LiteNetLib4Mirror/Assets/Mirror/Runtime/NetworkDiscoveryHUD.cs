@@ -15,7 +15,7 @@ namespace Mirror.LiteNetLib4Mirror
 		private bool _noDiscovering = true;
 		private bool _existsDiscovery = false;
 
-		void Awake()
+		private void Awake()
 		{
 			_manager = GetComponent<NetworkManager>();
 			_managerHud = GetComponent<NetworkManagerHUD>();
@@ -29,7 +29,7 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 		}
 
-		void OnGUI()
+		private void OnGUI()
 		{
 			if (!_managerHud.showGUI || !_existsDiscovery)
 			{
@@ -63,7 +63,7 @@ namespace Mirror.LiteNetLib4Mirror
 			GUILayout.EndArea();
 		}
 
-		IEnumerator StartDiscovery()
+		private IEnumerator StartDiscovery()
 		{
 			_noDiscovering = false;
 
@@ -77,7 +77,7 @@ namespace Mirror.LiteNetLib4Mirror
 			LiteNetLib4MirrorDiscovery.Singleton.onDiscoveryResponse.RemoveListener(OnClientDiscoveryResponse);
 		}
 
-		void OnClientDiscoveryResponse(IPEndPoint endpoint, string text)
+		private void OnClientDiscoveryResponse(IPEndPoint endpoint, string text)
 		{
 			var ip = endpoint.Address.ToString();
 			var port = (ushort)endpoint.Port;
