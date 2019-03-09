@@ -10,7 +10,7 @@ namespace Mirror.LiteNetLib4Mirror
 	public static class LiteNetLib4MirrorServer
 	{
 		internal static readonly Dictionary<int, NetPeer> Peers = new Dictionary<int, NetPeer>();
-		private static string Code;
+		public static string Code { get; internal set; }
 
 		internal static bool ServerActiveInternal()
 		{
@@ -90,14 +90,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		internal static void ServerOnConnectionRequestEvent(ConnectionRequest request)
 		{
-			if (LiteNetLib4MirrorCore.Host.PeersCount >= LiteNetLib4MirrorTransport.Singleton.maxConnections)
-			{
-				request.Reject();
-			}
-			else if (request.AcceptIfKey(Code) == null)
-			{
-				Debug.LogWarning("Client tried to join with an invalid auth code! Current code:" + Code);
-			}
+			LiteNetLib4MirrorTransport.Singleton.ProcessConnectionRequest(request);
 		}
 
 		internal static bool ServerSendInternal(int connectionId, DeliveryMethod method, byte[] data, int start, int length, byte channelNumber)

@@ -109,11 +109,24 @@ namespace Mirror.LiteNetLib4Mirror
 		public UnityEventIntError onServerSocketError;
 
 		internal static bool Polling;
-		
+		#region Overridable methods       
 		protected internal virtual string GenerateCode()
 		{
 			return Convert.ToBase64String(Encoding.UTF8.GetBytes(LiteNetLib4MirrorUtils.Concatenate(Application.productName, Application.companyName, Application.unityVersion, LiteNetLib4MirrorCore.TransportVersion, Singleton.authCode)));
 		}
+
+		protected internal virtual void ProcessConnectionRequest(ConnectionRequest request)
+		{
+			if (LiteNetLib4MirrorCore.Host.PeersCount >= maxConnections)
+			{
+				request.Reject();
+			}
+			else if (request.AcceptIfKey(LiteNetLib4MirrorServer.Code) == null)
+			{
+				Debug.LogWarning("Client tried to join with an invalid auth code! Current code:" + LiteNetLib4MirrorServer.Code);
+			}
+		}
+		#endregion
 
 		internal void Initialize()
 		{
