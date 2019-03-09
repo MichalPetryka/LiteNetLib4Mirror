@@ -1,0 +1,93 @@
+using System.Net.Sockets;
+using LiteNetLib;
+
+namespace Mirror.LiteNetLib4Mirror
+{
+	public static class LiteNetLib4MirrorCore
+	{
+		public const string TransportVersion = "1.1.1";
+		public static SocketError LastError { get; internal set; }
+		public static SocketError LastDisconnectError { get; internal set; }
+		public static DisconnectReason LastDisconnectReason { get; internal set; }
+		public static NetManager Host { get; internal set; }
+		public static States State { get; internal set; } = States.NonInitialized;
+
+		public enum States
+		{
+			NonInitialized,
+			Idle,
+			Discovery,
+			Client,
+			Server
+		}
+
+		internal static string ToStringInternal()
+		{
+			switch (State)
+			{
+				case States.NonInitialized:
+					return "LiteNetLib4Mirror isn't initialized";
+				case States.Idle:
+					return "LiteNetLib4Mirror Transport idle";
+				case States.Client:
+					return $"LiteNetLib4Mirror Client Connected to {LiteNetLib4MirrorTransport.Singleton.clientAddress}:{LiteNetLib4MirrorTransport.Singleton.port}";
+				case States.Server:
+#if DISABLE_IPV6
+					return $"LiteNetLib4Mirror Server active at IPv4:{LiteNetLib4MirrorTransport.Singleton.serverIPv4BindAddress} Port:{LiteNetLib4MirrorTransport.Singleton.port}";
+#else
+					return $"LiteNetLib4Mirror Server active at IPv4:{LiteNetLib4MirrorTransport.Singleton.serverIPv4BindAddress} IPv6:{LiteNetLib4MirrorTransport.Singleton.serverIPv6BindAddress} Port:{LiteNetLib4MirrorTransport.Singleton.port}";
+#endif
+				default:
+					return "Invalid state!";
+			}
+		}
+
+		internal static void SetParameters(bool server)
+		{
+			Host.UpdateTime = LiteNetLib4MirrorTransport.Singleton.updateTime;
+			Host.PingInterval = LiteNetLib4MirrorTransport.Singleton.pingInterval;
+			Host.DisconnectTimeout = LiteNetLib4MirrorTransport.Singleton.disconnectTimeout;
+			Host.ReconnectDelay = LiteNetLib4MirrorTransport.Singleton.reconnectDelay;
+			Host.MaxConnectAttempts = LiteNetLib4MirrorTransport.Singleton.maxConnectAttempts;
+
+			Host.SimulatePacketLoss = LiteNetLib4MirrorTransport.Singleton.simulatePacketLoss;
+			Host.SimulationPacketLossChance = LiteNetLib4MirrorTransport.Singleton.simulationPacketLossChance;
+			Host.SimulateLatency = LiteNetLib4MirrorTransport.Singleton.simulateLatency;
+			Host.SimulationMinLatency = LiteNetLib4MirrorTransport.Singleton.simulationMinLatency;
+			Host.SimulationMaxLatency = LiteNetLib4MirrorTransport.Singleton.simulationMaxLatency;
+
+			Host.DiscoveryEnabled = server && LiteNetLib4MirrorDiscovery.Singleton != null;
+
+			Host.ChannelsCount = (byte)LiteNetLib4MirrorTransport.Singleton.channels.Length;
+		}
+
+		internal static void StopInternal()
+		{
+			if (Host != null)
+			{
+				LiteNetLib4MirrorServer.Peers.Clear();
+				Host.Flush();
+				Host.Stop();
+				Host = null;
+				LiteNetLib4MirrorTransport.Polling = false;
+				State = States.Idle;
+			}
+		}
+
+		internal static int GetMaxPacketSizeInternal(DeliveryMethod channel)
+		{
+			int mtu = Host?.FirstPeer?.Mtu ?? NetConstants.MaxPacketSize;
+			switch (channel)
+			{
+				case DeliveryMethod.ReliableOrdered:
+				case DeliveryMethod.ReliableUnordered:
+					return ushort.MaxValue * (mtu - NetConstants.FragmentHeaderSize);
+				case DeliveryMethod.ReliableSequenced:
+				case DeliveryMethod.Sequenced:
+					return mtu - NetConstants.ChanneledHeaderSize;
+				default:
+					return mtu - NetConstants.HeaderSize;
+			}
+		}
+	}
+}
