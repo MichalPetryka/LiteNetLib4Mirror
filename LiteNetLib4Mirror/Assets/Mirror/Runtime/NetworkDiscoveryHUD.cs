@@ -6,6 +6,7 @@ using UnityEngine;
 namespace Mirror.LiteNetLib4Mirror
 {
 	[RequireComponent(typeof(LiteNetLib4MirrorNetworkManager))]
+	[RequireComponent(typeof(LiteNetLib4MirrorDiscovery))]
 	[RequireComponent(typeof(NetworkManagerHUD))]
 	[EditorBrowsable(EditorBrowsableState.Never)]
 	public class NetworkDiscoveryHUD : MonoBehaviour
@@ -14,25 +15,16 @@ namespace Mirror.LiteNetLib4Mirror
 		private LiteNetLib4MirrorNetworkManager _manager;
 		private NetworkManagerHUD _managerHud;
 		private bool _noDiscovering = true;
-		private bool _existsDiscovery = false;
 
 		private void Awake()
 		{
 			_manager = GetComponent<LiteNetLib4MirrorNetworkManager>();
 			_managerHud = GetComponent<NetworkManagerHUD>();
-			if (LiteNetLib4MirrorDiscovery.Singleton != null)
-			{
-				_existsDiscovery = true;
-			}
-			else
-			{
-				Debug.LogWarning("NetworkDiscoveryHUD could not find a LiteNetLib4MirrorDiscovery. The NetworkDiscoveryHUD requires a LiteNetLib4MirrorDiscovery.");
-			}
 		}
 
 		private void OnGUI()
 		{
-			if (!_managerHud.showGUI || !_existsDiscovery)
+			if (!_managerHud.showGUI)
 			{
 				_noDiscovering = true;
 				return;
