@@ -6,8 +6,9 @@ using UnityEngine;
 namespace Mirror.LiteNetLib4Mirror
 {
 	[RequireComponent(typeof(NetworkManager))]
-	[RequireComponent(typeof(LiteNetLib4MirrorDiscovery))]
 	[RequireComponent(typeof(NetworkManagerHUD))]
+	[RequireComponent(typeof(LiteNetLib4MirrorTransport))]
+	[RequireComponent(typeof(LiteNetLib4MirrorDiscovery))]
 	[EditorBrowsable(EditorBrowsableState.Never)]
 	public class NetworkDiscoveryHUD : MonoBehaviour
 	{
@@ -74,7 +75,13 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			var ip = endpoint.Address.ToString();
 			var port = (ushort)endpoint.Port;
-			(_manager as LiteNetLib4MirrorNetworkManager)?.StartClient(ip, port);
+
+			_manager.networkAddress = ip;
+			_manager.maxConnections = 2;
+			LiteNetLib4MirrorTransport.Singleton.clientAddress = ip;
+			LiteNetLib4MirrorTransport.Singleton.port = port;
+			LiteNetLib4MirrorTransport.Singleton.maxConnections = 2;
+			_manager.StartClient();
 			_noDiscovering = true;
 		}
 	}
