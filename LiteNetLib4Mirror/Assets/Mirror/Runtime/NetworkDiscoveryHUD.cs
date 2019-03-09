@@ -5,19 +5,20 @@ using UnityEngine;
 
 namespace Mirror.LiteNetLib4Mirror
 {
+	[RequireComponent(typeof(LiteNetLib4MirrorNetworkManager))]
 	[RequireComponent(typeof(NetworkManagerHUD))]
 	[EditorBrowsable(EditorBrowsableState.Never)]
 	public class NetworkDiscoveryHUD : MonoBehaviour
 	{
 		[SerializeField] private float discoveryInterval = 1f;
-		private NetworkManager _manager;
+		private LiteNetLib4MirrorNetworkManager _manager;
 		private NetworkManagerHUD _managerHud;
 		private bool _noDiscovering = true;
 		private bool _existsDiscovery = false;
 
 		private void Awake()
 		{
-			_manager = GetComponent<NetworkManager>();
+			_manager = GetComponent<LiteNetLib4MirrorNetworkManager>();
 			_managerHud = GetComponent<NetworkManagerHUD>();
 			if (LiteNetLib4MirrorDiscovery.Singleton != null)
 			{
@@ -81,7 +82,7 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			var ip = endpoint.Address.ToString();
 			var port = (ushort)endpoint.Port;
-			(_manager as LiteNetLib4MirrorNetworkManager)?.StartClient(ip, port);
+			_manager.StartClient(ip, port);
 			_noDiscovering = true;
 		}
 	}
