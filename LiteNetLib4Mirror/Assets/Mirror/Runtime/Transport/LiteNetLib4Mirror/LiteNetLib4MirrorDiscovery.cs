@@ -40,6 +40,7 @@ namespace Mirror.LiteNetLib4Mirror
 				LiteNetLib4MirrorCore.Host.DiscoveryEnabled = true;
 				LiteNetLib4MirrorCore.Host.Start();
 				LiteNetLib4MirrorCore.State = LiteNetLib4MirrorCore.States.Discovery;
+				LiteNetLib4MirrorTransport.Polling = true;
 			}
 			else
 			{
@@ -60,6 +61,11 @@ namespace Mirror.LiteNetLib4Mirror
 
 				LiteNetLib4MirrorCore.Host.SendDiscoveryRequest(DataWriter, LiteNetLib4MirrorTransport.Singleton.port);
 			}
+		}
+
+		public static void Stop()
+		{
+			LiteNetLib4MirrorCore.StopInternal();
 		}
 
 		internal static void OnDiscoveryResponse(IPEndPoint remoteendpoint, NetPacketReader reader, UnconnectedMessageType messagetype)
