@@ -40,6 +40,7 @@ namespace Mirror.LiteNetLib4Mirror
 				LiteNetLib4MirrorCore.Host.DiscoveryEnabled = true;
 				LiteNetLib4MirrorCore.Host.Start();
 				LiteNetLib4MirrorCore.State = LiteNetLib4MirrorCore.States.Discovery;
+				LiteNetLib4MirrorTransport.Polling = true;
 			}
 			else
 			{
