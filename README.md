@@ -38,3 +38,4 @@ vis2k & Paul - for Mirror
 Coburn - for Ignorance which i've used as an example  
 Dankrushen - for helping me find one small mistake which i couldn't find for two days  
 Lucas Ontivero - for Open.Nat, used for UPnP  
+shiena - for NetworkDiscoveryHUD   
