@@ -31,27 +31,38 @@ namespace Mirror.LiteNetLib4Mirror
 				return;
 			}
 
+			bool noConnection = (_manager.client == null || _manager.client.connection == null ||
+			                     _manager.client.connection.connectionId == -1);
+
 			GUILayout.BeginArea(new Rect(10 + _managerHud.offsetX + 215 + 10, 40 + _managerHud.offsetY, 215, 9999));
 			if (!_manager.IsClientConnected() && !NetworkServer.active)
 			{
-				if (_noDiscovering)
+				if (noConnection)
 				{
-					if (GUILayout.Button("Start Discovery"))
+					if (_noDiscovering)
 					{
-						LiteNetLib4MirrorDiscovery.SeekerInitialize();
-						StartCoroutine(StartDiscovery());
+						if (GUILayout.Button("Start Discovery"))
+						{
+							StartCoroutine(StartDiscovery());
+						}
+					} else
+					{
+						GUILayout.Label("Discovering..");
+						GUILayout.Label($"LocalPort: {LiteNetLib4MirrorCore.Host.LocalPort}");
+						if (GUILayout.Button("Stop Discovery"))
+						{
+							_noDiscovering = true;
+						}
 					}
 				}
 				else
 				{
-					GUILayout.Label("Discovering..");
-					GUILayout.Label($"LocalPort: {LiteNetLib4MirrorCore.Host.LocalPort}");
-					if (GUILayout.Button("Stop Discovery"))
-					{
-						_noDiscovering = true;
-						LiteNetLib4MirrorDiscovery.Stop();
-					}
+					_noDiscovering = true;
 				}
+			}
+			else
+			{
+				_noDiscovering = true;
 			}
 
 			GUILayout.EndArea();
@@ -61,6 +72,7 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			_noDiscovering = false;
 
+			LiteNetLib4MirrorDiscovery.SeekerInitialize();
 			LiteNetLib4MirrorDiscovery.Singleton.onDiscoveryResponse.AddListener(OnClientDiscoveryResponse);
 			while (!_noDiscovering)
 			{
@@ -69,12 +81,18 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 
 			LiteNetLib4MirrorDiscovery.Singleton.onDiscoveryResponse.RemoveListener(OnClientDiscoveryResponse);
+			if (!NetworkClient.active && !NetworkServer.active)
+			{
+				LiteNetLib4MirrorDiscovery.Stop();
+			}
 		}
 
 		private void OnClientDiscoveryResponse(IPEndPoint endpoint, string text)
 		{
-			var ip = endpoint.Address.ToString();
-			var port = (ushort)endpoint.Port;
+			LiteNetLib4MirrorDiscovery.Stop();
+
+			string ip = endpoint.Address.ToString();
+			ushort port = (ushort)endpoint.Port;
 
 			_manager.networkAddress = ip;
 			_manager.maxConnections = 2;
