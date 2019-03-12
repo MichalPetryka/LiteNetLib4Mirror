@@ -81,16 +81,11 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 
 			LiteNetLib4MirrorDiscovery.Singleton.onDiscoveryResponse.RemoveListener(OnClientDiscoveryResponse);
-			if (!NetworkClient.active && !NetworkServer.active)
-			{
-				LiteNetLib4MirrorDiscovery.Stop();
-			}
+			LiteNetLib4MirrorDiscovery.Stop();
 		}
 
 		private void OnClientDiscoveryResponse(IPEndPoint endpoint, string text)
 		{
-			LiteNetLib4MirrorDiscovery.Stop();
-
 			string ip = endpoint.Address.ToString();
 			ushort port = (ushort)endpoint.Port;
 
