@@ -44,7 +44,7 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 			else
 			{
-				Debug.LogWarning("LiteNetLib4Mirror is already running client or server!");
+				Debug.LogWarning("LiteNetLib4Mirror is already running as a client or a server!");
 			}
 		}
 
@@ -68,7 +68,7 @@ namespace Mirror.LiteNetLib4Mirror
 			LiteNetLib4MirrorCore.StopInternal();
 		}
 
-		internal static void OnDiscoveryResponse(IPEndPoint remoteendpoint, NetPacketReader reader, UnconnectedMessageType messagetype)
+		private static void OnDiscoveryResponse(IPEndPoint remoteendpoint, NetPacketReader reader, UnconnectedMessageType messagetype)
 		{
 			if (messagetype == UnconnectedMessageType.DiscoveryResponse)
 			{
