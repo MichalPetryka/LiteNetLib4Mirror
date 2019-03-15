@@ -73,6 +73,7 @@ namespace Mirror
         {
             Transport.activeTransport.OnClientConnected.AddListener(OnConnected);
             Transport.activeTransport.OnClientDataReceived.AddListener(OnDataReceived);
+            Transport.activeTransport.OnClientDataReceivedNonAlloc.AddListener(OnDataReceived);
             Transport.activeTransport.OnClientDisconnected.AddListener(OnDisconnected);
             Transport.activeTransport.OnClientError.AddListener(OnError);
         }
@@ -92,6 +93,15 @@ namespace Mirror
         }
 
         protected void OnDataReceived(byte[] data)
+        {
+            if (connection != null)
+            {
+                connection.TransportReceive(data);
+            }
+            else Debug.LogError("Skipped Data message handling because m_Connection is null.");
+        }
+
+        protected void OnDataReceived(ArraySegment<byte> data)
         {
             if (connection != null)
             {
@@ -137,6 +147,7 @@ namespace Mirror
             // so that we don't register them more than once
             Transport.activeTransport.OnClientConnected.RemoveListener(OnConnected);
             Transport.activeTransport.OnClientDataReceived.RemoveListener(OnDataReceived);
+            Transport.activeTransport.OnClientDataReceivedNonAlloc.RemoveListener(OnDataReceived);
             Transport.activeTransport.OnClientDisconnected.RemoveListener(OnDisconnected);
             Transport.activeTransport.OnClientError.RemoveListener(OnError);
         }

@@ -252,6 +252,26 @@ namespace Mirror
             else Debug.LogError("HandleBytes UnpackMessage failed for: " + BitConverter.ToString(buffer));
         }
 
+        public virtual void TransportReceive(ArraySegment<byte> buffer)
+        {
+            // unpack message
+            NetworkReader reader = new NetworkReader(buffer);
+            if (MessagePacker.UnpackMessage(reader, out int msgType))
+            {
+                if (logNetworkMessages)
+                {
+                    Debug.Log("ConnectionRecv con:" + connectionId + " msgType:" + msgType + " content:" + BitConverter.ToString(buffer.Array, buffer.Offset, buffer.Count));
+                }
+
+                // try to invoke the handler for that message
+                if (InvokeHandler(msgType, reader))
+                {
+                    lastMessageTime = Time.time;
+                }
+            }
+            else Debug.LogError("HandleBytes UnpackMessage failed for: " + BitConverter.ToString(buffer.Array, buffer.Offset, buffer.Count));
+        }
+
         public virtual bool TransportSend(int channelId, byte[] bytes, out byte error)
         {
             error = 0;

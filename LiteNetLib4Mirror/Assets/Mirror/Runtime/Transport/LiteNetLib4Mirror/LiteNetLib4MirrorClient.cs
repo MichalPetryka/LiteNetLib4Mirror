@@ -7,27 +7,27 @@ namespace Mirror.LiteNetLib4Mirror
 {
 	public static class LiteNetLib4MirrorClient
 	{
-		internal static bool ClientConnectedInternal()
+		internal static bool IsConnected()
 		{
 			return LiteNetLib4MirrorCore.State == LiteNetLib4MirrorCore.States.Client;
 		}
 
-		internal static void ClientConnectInternal(string code)
+		internal static void ConnectClient(string code)
 		{
 			try
 			{
 				if (LiteNetLib4MirrorCore.State == LiteNetLib4MirrorCore.States.Discovery)
 				{
-					LiteNetLib4MirrorCore.StopInternal();
+					LiteNetLib4MirrorCore.StopTransport();
 				}
 				EventBasedNetListener listener = new EventBasedNetListener();
 				LiteNetLib4MirrorCore.Host = new NetManager(listener);
-				listener.NetworkReceiveEvent += ClientOnNetworkReceiveEvent;
-				listener.NetworkErrorEvent += ClientOnNetworkErrorEvent;
-				listener.PeerConnectedEvent += ClientOnPeerConnectedEvent;
-				listener.PeerDisconnectedEvent += ClientOnPeerDisconnectedEvent;
+				listener.NetworkReceiveEvent += OnNetworkReceive;
+				listener.NetworkErrorEvent += OnNetworkError;
+				listener.PeerConnectedEvent += OnPeerConnected;
+				listener.PeerDisconnectedEvent += OnPeerDisconnected;
 
-				LiteNetLib4MirrorCore.SetParameters(false);
+				LiteNetLib4MirrorCore.SetOptions(false);
 
 				LiteNetLib4MirrorCore.Host.Start();
 				LiteNetLib4MirrorCore.Host.Connect(LiteNetLib4MirrorUtils.Parse(LiteNetLib4MirrorTransport.Singleton.clientAddress, LiteNetLib4MirrorTransport.Singleton.port), code);
@@ -42,20 +42,20 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 		}
 
-		private static void ClientOnPeerDisconnectedEvent(NetPeer peer, DisconnectInfo disconnectinfo)
+		private static void OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectinfo)
 		{
 			LiteNetLib4MirrorCore.LastDisconnectError = disconnectinfo.SocketErrorCode;
 			LiteNetLib4MirrorCore.LastDisconnectReason = disconnectinfo.Reason;
 			LiteNetLib4MirrorTransport.Singleton.OnClientDisconnected.Invoke();
-			LiteNetLib4MirrorCore.StopInternal();
+			LiteNetLib4MirrorCore.StopTransport();
 		}
 
-		private static void ClientOnPeerConnectedEvent(NetPeer peer)
+		private static void OnPeerConnected(NetPeer peer)
 		{
 			LiteNetLib4MirrorTransport.Singleton.OnClientConnected.Invoke();
 		}
 
-		private static void ClientOnNetworkReceiveEvent(NetPeer peer, NetPacketReader reader, DeliveryMethod deliverymethod)
+		private static void OnNetworkReceive(NetPeer peer, NetPacketReader reader, DeliveryMethod deliverymethod)
 		{
 #if NONALLOC_RECEIVE
 			LiteNetLib4MirrorTransport.Singleton.OnClientDataReceivedNonAlloc.Invoke(reader.GetRemainingBytesSegment());
@@ -65,14 +65,14 @@ namespace Mirror.LiteNetLib4Mirror
 			reader.Recycle();
 		}
 
-		private static void ClientOnNetworkErrorEvent(IPEndPoint endpoint, SocketError socketerror)
+		private static void OnNetworkError(IPEndPoint endpoint, SocketError socketerror)
 		{
 			LiteNetLib4MirrorCore.LastError = socketerror;
 			LiteNetLib4MirrorTransport.Singleton.OnClientError.Invoke(new SocketException((int)socketerror));
 			LiteNetLib4MirrorTransport.Singleton.onClientSocketError.Invoke(socketerror);
 		}
 
-		internal static bool ClientSendInternal(DeliveryMethod method, byte[] data, int start, int length, byte channelNumber)
+		internal static bool Send(DeliveryMethod method, byte[] data, int start, int length, byte channelNumber)
 		{
 			try
 			{

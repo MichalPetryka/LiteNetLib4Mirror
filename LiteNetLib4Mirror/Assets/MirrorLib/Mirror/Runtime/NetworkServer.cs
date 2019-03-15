@@ -47,6 +47,7 @@ namespace Mirror
                 Transport.activeTransport.OnServerDisconnected.RemoveListener(OnDisconnected);
                 Transport.activeTransport.OnServerConnected.RemoveListener(OnConnected);
                 Transport.activeTransport.OnServerDataReceived.RemoveListener(OnDataReceived);
+                Transport.activeTransport.OnServerDataReceivedNonAlloc.RemoveListener(OnDataReceived);
                 Transport.activeTransport.OnServerError.RemoveListener(OnError);
 
                 s_Initialized = false;
@@ -68,6 +69,7 @@ namespace Mirror
             Transport.activeTransport.OnServerDisconnected.AddListener(OnDisconnected);
             Transport.activeTransport.OnServerConnected.AddListener(OnConnected);
             Transport.activeTransport.OnServerDataReceived.AddListener(OnDataReceived);
+            Transport.activeTransport.OnServerDataReceivedNonAlloc.AddListener(OnDataReceived);
             Transport.activeTransport.OnServerError.AddListener(OnError);
 
         }
@@ -431,6 +433,18 @@ namespace Mirror
             }
         }
 
+        static void OnDataReceived(int connectionId, ArraySegment<byte> data)
+        {
+            if (connections.TryGetValue(connectionId, out NetworkConnection conn))
+            {
+                OnData(conn, data);
+            }
+            else
+            {
+                Debug.LogError("HandleData Unknown connectionId:" + connectionId);
+            }
+        }
+
         private static void OnError(int connectionId, Exception exception)
         {
             // TODO Let's discuss how we will handle errors
@@ -438,6 +452,11 @@ namespace Mirror
         }
 
         static void OnData(NetworkConnection conn, byte[] data)
+        {
+            conn.TransportReceive(data);
+        }
+
+        static void OnData(NetworkConnection conn, ArraySegment<byte> data)
         {
             conn.TransportReceive(data);
         }

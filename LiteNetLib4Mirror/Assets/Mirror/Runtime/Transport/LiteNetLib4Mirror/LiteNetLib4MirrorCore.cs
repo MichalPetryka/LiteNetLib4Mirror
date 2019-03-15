@@ -5,7 +5,7 @@ namespace Mirror.LiteNetLib4Mirror
 {
 	public static class LiteNetLib4MirrorCore
 	{
-		public const string TransportVersion = "1.1.1";
+		public const string TransportVersion = "1.1.2";
 		public static SocketError LastError { get; internal set; }
 		public static SocketError LastDisconnectError { get; internal set; }
 		public static DisconnectReason LastDisconnectReason { get; internal set; }
@@ -21,7 +21,7 @@ namespace Mirror.LiteNetLib4Mirror
 			Server
 		}
 
-		internal static string ToStringInternal()
+		internal static string GetState()
 		{
 			switch (State)
 			{
@@ -42,7 +42,7 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 		}
 
-		internal static void SetParameters(bool server)
+		internal static void SetOptions(bool server)
 		{
 			Host.UpdateTime = LiteNetLib4MirrorTransport.Singleton.updateTime;
 			Host.PingInterval = LiteNetLib4MirrorTransport.Singleton.pingInterval;
@@ -61,7 +61,7 @@ namespace Mirror.LiteNetLib4Mirror
 			Host.ChannelsCount = (byte)LiteNetLib4MirrorTransport.Singleton.channels.Length;
 		}
 
-		internal static void StopInternal()
+		internal static void StopTransport()
 		{
 			if (Host != null)
 			{
@@ -74,7 +74,7 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 		}
 
-		internal static int GetMaxPacketSizeInternal(DeliveryMethod channel)
+		internal static int GetMaxPacketSize(DeliveryMethod channel)
 		{
 			int mtu = Host?.FirstPeer?.Mtu ?? NetConstants.MaxPacketSize;
 			switch (channel)

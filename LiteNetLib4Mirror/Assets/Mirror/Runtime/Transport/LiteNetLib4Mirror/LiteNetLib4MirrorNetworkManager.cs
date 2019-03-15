@@ -13,7 +13,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public override void Awake()
 		{
-			LiteNetLib4MirrorTransport.Singleton.Initialize();
+			LiteNetLib4MirrorTransport.Singleton.InitializeTransport();
 			base.Awake();
 			singleton = this;
 			NetworkManager.singleton = this;

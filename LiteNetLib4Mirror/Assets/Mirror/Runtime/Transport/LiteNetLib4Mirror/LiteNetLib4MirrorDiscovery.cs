@@ -5,18 +5,19 @@ using UnityEngine;
 
 namespace Mirror.LiteNetLib4Mirror
 {
+	[RequireComponent(typeof(LiteNetLib4MirrorTransport))]
 	public class LiteNetLib4MirrorDiscovery : MonoBehaviour
 	{
 		public UnityEventIpEndpointString onDiscoveryResponse;
 		private static readonly NetDataWriter DataWriter = new NetDataWriter();
-		public static LiteNetLib4MirrorDiscovery Singleton { get; private set; }
+		public static LiteNetLib4MirrorDiscovery Singleton { get; protected set; }
 		private static string _lastDiscoveryMessage;
 
-		private void Awake()
+		protected virtual void Awake()
 		{
 			if (Singleton == null)
 			{
-				GetComponent<LiteNetLib4MirrorTransport>()?.Initialize();
+				GetComponent<LiteNetLib4MirrorTransport>().InitializeTransport();
 				Singleton = this;
 			}
 		}
@@ -30,7 +31,7 @@ namespace Mirror.LiteNetLib4Mirror
 			return true;
 		}
 
-		public static void SeekerInitialize()
+		public static void InitializeFinder()
 		{
 			if (LiteNetLib4MirrorCore.State == LiteNetLib4MirrorCore.States.Idle)
 			{
@@ -63,11 +64,11 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 		}
 
-		public static void Stop()
+		public static void StopDiscovery()
 		{
 			if (LiteNetLib4MirrorCore.State == LiteNetLib4MirrorCore.States.Discovery)
 			{
-				LiteNetLib4MirrorCore.StopInternal();
+				LiteNetLib4MirrorCore.StopTransport();
 			}
 		}
 

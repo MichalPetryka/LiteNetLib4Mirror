@@ -30,9 +30,9 @@ namespace Mirror.LiteNetLib4Mirror
 				return;
 			}
 
-			bool noConnection = (NetworkManager.singleton.client == null ||
-								 NetworkManager.singleton.client.connection == null ||
-								 NetworkManager.singleton.client.connection.connectionId == -1);
+			bool noConnection = NetworkManager.singleton.client == null ||
+								NetworkManager.singleton.client.connection == null ||
+								NetworkManager.singleton.client.connection.connectionId == -1;
 
 			GUILayout.BeginArea(new Rect(10 + _managerHud.offsetX + 215 + 10, 40 + _managerHud.offsetY, 215, 9999));
 			if (!NetworkManager.singleton.IsClientConnected() && !NetworkServer.active)
@@ -73,7 +73,7 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			_noDiscovering = false;
 
-			LiteNetLib4MirrorDiscovery.SeekerInitialize();
+			LiteNetLib4MirrorDiscovery.InitializeFinder();
 			LiteNetLib4MirrorDiscovery.Singleton.onDiscoveryResponse.AddListener(OnClientDiscoveryResponse);
 			while (!_noDiscovering)
 			{
@@ -82,18 +82,17 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 
 			LiteNetLib4MirrorDiscovery.Singleton.onDiscoveryResponse.RemoveListener(OnClientDiscoveryResponse);
-			LiteNetLib4MirrorDiscovery.Stop();
+			LiteNetLib4MirrorDiscovery.StopDiscovery();
 		}
 
 		private void OnClientDiscoveryResponse(IPEndPoint endpoint, string text)
 		{
 			string ip = endpoint.Address.ToString();
-			ushort port = (ushort)endpoint.Port;
 
 			NetworkManager.singleton.networkAddress = ip;
 			NetworkManager.singleton.maxConnections = 2;
 			LiteNetLib4MirrorTransport.Singleton.clientAddress = ip;
-			LiteNetLib4MirrorTransport.Singleton.port = port;
+			LiteNetLib4MirrorTransport.Singleton.port = (ushort)endpoint.Port;
 			LiteNetLib4MirrorTransport.Singleton.maxConnections = 2;
 			NetworkManager.singleton.StartClient();
 			_noDiscovering = true;

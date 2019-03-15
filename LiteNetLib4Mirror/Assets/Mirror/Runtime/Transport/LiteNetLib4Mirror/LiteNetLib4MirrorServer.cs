@@ -11,29 +11,29 @@ namespace Mirror.LiteNetLib4Mirror
 		public static readonly Dictionary<int, NetPeer> Peers = new Dictionary<int, NetPeer>();
 		public static string Code { get; internal set; }
 
-		internal static bool ServerActiveInternal()
+		internal static bool IsActive()
 		{
 			return LiteNetLib4MirrorCore.State == LiteNetLib4MirrorCore.States.Server;
 		}
 
-		internal static void ServerStartInternal(string code)
+		internal static void StartServer(string code)
 		{
 			try
 			{
 				Code = code;
 				EventBasedNetListener listener = new EventBasedNetListener();
 				LiteNetLib4MirrorCore.Host = new NetManager(listener);
-				listener.ConnectionRequestEvent += ServerOnConnectionRequestEvent;
-				listener.PeerDisconnectedEvent += ServerOnPeerDisconnectedEvent;
-				listener.NetworkErrorEvent += ServerOnNetworkErrorEvent;
-				listener.NetworkReceiveEvent += ServerOnNetworkReceiveEvent;
-				listener.PeerConnectedEvent += ServerOnPeerConnectedEvent;
+				listener.ConnectionRequestEvent += OnConnectionRequest;
+				listener.PeerDisconnectedEvent += OnPeerDisconnected;
+				listener.NetworkErrorEvent += OnNetworkError;
+				listener.NetworkReceiveEvent += OnNetworkReceive;
+				listener.PeerConnectedEvent += OnPeerConnected;
 				if (LiteNetLib4MirrorDiscovery.Singleton != null)
 				{
 					listener.NetworkReceiveUnconnectedEvent += LiteNetLib4MirrorDiscovery.OnDiscoveryRequest;
 				}
 
-				LiteNetLib4MirrorCore.SetParameters(true);
+				LiteNetLib4MirrorCore.SetOptions(true);
 				if (LiteNetLib4MirrorTransport.Singleton.useUpnP)
 				{
 					LiteNetLib4MirrorUtils.ForwardPort();
@@ -53,13 +53,13 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 		}
 
-		private static void ServerOnPeerConnectedEvent(NetPeer peer)
+		private static void OnPeerConnected(NetPeer peer)
 		{
 			Peers.Add(peer.Id + 1, peer);
 			LiteNetLib4MirrorTransport.Singleton.OnServerConnected.Invoke(peer.Id + 1);
 		}
 
-		private static void ServerOnNetworkReceiveEvent(NetPeer peer, NetPacketReader reader, DeliveryMethod deliverymethod)
+		private static void OnNetworkReceive(NetPeer peer, NetPacketReader reader, DeliveryMethod deliverymethod)
 		{
 #if NONALLOC_RECEIVE
 			LiteNetLib4MirrorTransport.Singleton.OnServerDataReceivedNonAlloc.Invoke(peer.Id + 1, reader.GetRemainingBytesSegment());
@@ -69,7 +69,7 @@ namespace Mirror.LiteNetLib4Mirror
 			reader.Recycle();
 		}
 
-		private static void ServerOnNetworkErrorEvent(IPEndPoint endpoint, SocketError socketerror)
+		private static void OnNetworkError(IPEndPoint endpoint, SocketError socketerror)
 		{
 			LiteNetLib4MirrorCore.LastError = socketerror;
 			for (NetPeer peer = LiteNetLib4MirrorCore.Host.FirstPeer; peer != null; peer = peer.NextPeer)
@@ -83,7 +83,7 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 		}
 
-		private static void ServerOnPeerDisconnectedEvent(NetPeer peer, DisconnectInfo disconnectinfo)
+		private static void OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectinfo)
 		{
 			LiteNetLib4MirrorCore.LastDisconnectError = disconnectinfo.SocketErrorCode;
 			LiteNetLib4MirrorCore.LastDisconnectReason = disconnectinfo.Reason;
@@ -91,12 +91,12 @@ namespace Mirror.LiteNetLib4Mirror
 			Peers.Remove(peer.Id + 1);
 		}
 
-		private static void ServerOnConnectionRequestEvent(ConnectionRequest request)
+		private static void OnConnectionRequest(ConnectionRequest request)
 		{
 			LiteNetLib4MirrorTransport.Singleton.ProcessConnectionRequest(request);
 		}
 
-		internal static bool ServerSendInternal(int connectionId, DeliveryMethod method, byte[] data, int start, int length, byte channelNumber)
+		internal static bool Send(int connectionId, DeliveryMethod method, byte[] data, int start, int length, byte channelNumber)
 		{
 			try
 			{
@@ -109,7 +109,7 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 		}
 
-		internal static bool ServerDisconnectInternal(int connectionId)
+		internal static bool Disconnect(int connectionId)
 		{
 			try
 			{
@@ -122,7 +122,7 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 		}
 
-		internal static string ServerGetClientAddressInteral(int connectionId)
+		internal static string GetClientAddress(int connectionId)
 		{
 			return Peers[connectionId].EndPoint.Address.ToString();
 		}

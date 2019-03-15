@@ -128,7 +128,7 @@ namespace Mirror.LiteNetLib4Mirror
 		}
 		#endregion
 
-		internal void Initialize()
+		internal void InitializeTransport()
 		{
 			if (Singleton == null)
 			{
@@ -140,7 +140,7 @@ namespace Mirror.LiteNetLib4Mirror
 		#region Unity Functions
 		private void Awake()
 		{
-			Initialize();
+			InitializeTransport();
 		}
 
 		private void LateUpdate()
@@ -153,7 +153,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private void OnDestroy()
 		{
-			LiteNetLib4MirrorCore.StopInternal();
+			LiteNetLib4MirrorCore.StopTransport();
 			if (LiteNetLib4MirrorUtils.LastForwardedPort != 0)
 			{
 				NatDiscoverer.ReleaseAll();
@@ -165,83 +165,83 @@ namespace Mirror.LiteNetLib4Mirror
 		#region Transport Overrides
 		public override bool ClientConnected()
 		{
-			return LiteNetLib4MirrorClient.ClientConnectedInternal();
+			return LiteNetLib4MirrorClient.IsConnected();
 		}
 
 		public override void ClientConnect(string address)
 		{
 			clientAddress = address;
-			LiteNetLib4MirrorClient.ClientConnectInternal(GenerateCode());
+			LiteNetLib4MirrorClient.ConnectClient(GenerateCode());
 		}
 
 		public override bool ClientSend(int channelId, byte[] data)
 		{
-			return LiteNetLib4MirrorClient.ClientSendInternal(channels[channelId], data, 0, data.Length, (byte)channelId);
+			return LiteNetLib4MirrorClient.Send(channels[channelId], data, 0, data.Length, (byte)channelId);
 		}
 
 		public override void ClientDisconnect()
 		{
-			if (!LiteNetLib4MirrorServer.ServerActiveInternal())
+			if (!LiteNetLib4MirrorServer.IsActive())
 			{
-				LiteNetLib4MirrorCore.StopInternal();
+				LiteNetLib4MirrorCore.StopTransport();
 			}
 		}
 
 		public override bool ServerActive()
 		{
-			return LiteNetLib4MirrorServer.ServerActiveInternal();
+			return LiteNetLib4MirrorServer.IsActive();
 		}
 
 		public override void ServerStart()
 		{
-			LiteNetLib4MirrorServer.ServerStartInternal(GenerateCode());
+			LiteNetLib4MirrorServer.StartServer(GenerateCode());
 		}
 
 		public override bool ServerSend(int connectionId, int channelId, byte[] data)
 		{
-			return LiteNetLib4MirrorServer.ServerSendInternal(connectionId, channels[channelId], data, 0, data.Length, (byte)channelId);
+			return LiteNetLib4MirrorServer.Send(connectionId, channels[channelId], data, 0, data.Length, (byte)channelId);
 		}
 
 		public override bool ServerDisconnect(int connectionId)
 		{
-			return connectionId == 0 || LiteNetLib4MirrorServer.ServerDisconnectInternal(connectionId);
+			return connectionId == 0 || LiteNetLib4MirrorServer.Disconnect(connectionId);
 		}
 
 		public override void ServerStop()
 		{
-			LiteNetLib4MirrorCore.StopInternal();
+			LiteNetLib4MirrorCore.StopTransport();
 		}
 
 		public override string ServerGetClientAddress(int connectionId)
 		{
-			return LiteNetLib4MirrorServer.ServerGetClientAddressInteral(connectionId);
+			return LiteNetLib4MirrorServer.GetClientAddress(connectionId);
 		}
 
 		public override void Shutdown()
 		{
-			LiteNetLib4MirrorCore.StopInternal();
+			LiteNetLib4MirrorCore.StopTransport();
 		}
 
 		public override int GetMaxPacketSize(int channelId = Channels.DefaultReliable)
 		{
-			return LiteNetLib4MirrorCore.GetMaxPacketSizeInternal(channels[channelId]);
+			return LiteNetLib4MirrorCore.GetMaxPacketSize(channels[channelId]);
 		}
 
 		public override string ToString()
 		{
-			return LiteNetLib4MirrorCore.ToStringInternal();
+			return LiteNetLib4MirrorCore.GetState();
 		}
 		#endregion
 
 		#region ISegmentTransport
 		public bool ClientSend(int channelId, ArraySegment<byte> data)
 		{
-			return LiteNetLib4MirrorClient.ClientSendInternal(channels[channelId], data.Array, data.Offset, data.Count, (byte)channelId);
+			return LiteNetLib4MirrorClient.Send(channels[channelId], data.Array, data.Offset, data.Count, (byte)channelId);
 		}
 
 		public bool ServerSend(int connectionId, int channelId, ArraySegment<byte> data)
 		{
-			return LiteNetLib4MirrorServer.ServerSendInternal(connectionId, channels[channelId], data.Array, data.Offset, data.Count, (byte)channelId);
+			return LiteNetLib4MirrorServer.Send(connectionId, channels[channelId], data.Array, data.Offset, data.Count, (byte)channelId);
 		}
 		#endregion
 	}
