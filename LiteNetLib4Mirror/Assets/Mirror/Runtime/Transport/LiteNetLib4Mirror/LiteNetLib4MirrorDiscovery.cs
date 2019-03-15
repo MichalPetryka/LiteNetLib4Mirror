@@ -65,7 +65,10 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public static void Stop()
 		{
-			LiteNetLib4MirrorCore.StopInternal();
+			if (LiteNetLib4MirrorCore.State == LiteNetLib4MirrorCore.States.Discovery)
+			{
+				LiteNetLib4MirrorCore.StopInternal();
+			}
 		}
 
 		private static void OnDiscoveryResponse(IPEndPoint remoteendpoint, NetPacketReader reader, UnconnectedMessageType messagetype)
