@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.ComponentModel;
 using System.Net;
 using UnityEngine;
@@ -10,16 +10,15 @@ namespace Mirror.LiteNetLib4Mirror
 	[RequireComponent(typeof(LiteNetLib4MirrorTransport))]
 	[RequireComponent(typeof(LiteNetLib4MirrorDiscovery))]
 	[EditorBrowsable(EditorBrowsableState.Never)]
+	// ReSharper disable once InconsistentNaming
 	public class NetworkDiscoveryHUD : MonoBehaviour
 	{
-		[SerializeField] private float discoveryInterval = 1f;
-		private NetworkManager _manager;
+		[SerializeField] public float discoveryInterval = 1f;
 		private NetworkManagerHUD _managerHud;
 		private bool _noDiscovering = true;
 
 		private void Awake()
 		{
-			_manager = GetComponent<NetworkManager>();
 			_managerHud = GetComponent<NetworkManagerHUD>();
 		}
 
@@ -31,11 +30,12 @@ namespace Mirror.LiteNetLib4Mirror
 				return;
 			}
 
-			bool noConnection = (_manager.client == null || _manager.client.connection == null ||
-			                     _manager.client.connection.connectionId == -1);
+			bool noConnection = (NetworkManager.singleton.client == null ||
+								 NetworkManager.singleton.client.connection == null ||
+								 NetworkManager.singleton.client.connection.connectionId == -1);
 
 			GUILayout.BeginArea(new Rect(10 + _managerHud.offsetX + 215 + 10, 40 + _managerHud.offsetY, 215, 9999));
-			if (!_manager.IsClientConnected() && !NetworkServer.active)
+			if (!NetworkManager.singleton.IsClientConnected() && !NetworkServer.active)
 			{
 				if (noConnection)
 				{
@@ -45,10 +45,11 @@ namespace Mirror.LiteNetLib4Mirror
 						{
 							StartCoroutine(StartDiscovery());
 						}
-					} else
+					}
+					else
 					{
 						GUILayout.Label("Discovering..");
-						GUILayout.Label($"LocalPort: {LiteNetLib4MirrorCore.Host.LocalPort}");
+						GUILayout.Label($"LocalPort: {LiteNetLib4MirrorTransport.Singleton.port}");
 						if (GUILayout.Button("Stop Discovery"))
 						{
 							_noDiscovering = true;
@@ -89,12 +90,12 @@ namespace Mirror.LiteNetLib4Mirror
 			string ip = endpoint.Address.ToString();
 			ushort port = (ushort)endpoint.Port;
 
-			_manager.networkAddress = ip;
-			_manager.maxConnections = 2;
+			NetworkManager.singleton.networkAddress = ip;
+			NetworkManager.singleton.maxConnections = 2;
 			LiteNetLib4MirrorTransport.Singleton.clientAddress = ip;
 			LiteNetLib4MirrorTransport.Singleton.port = port;
 			LiteNetLib4MirrorTransport.Singleton.maxConnections = 2;
-			_manager.StartClient();
+			NetworkManager.singleton.StartClient();
 			_noDiscovering = true;
 		}
 	}

@@ -39,6 +39,7 @@ namespace Mirror.LiteNetLib4Mirror
 			{
 				case "0.0.0.0":
 					return IPAddress.Any;
+				case "0:0:0:0:0:0:0:0":
 				case "::":
 					return IPAddress.IPv6Any;
 				case "localhost":

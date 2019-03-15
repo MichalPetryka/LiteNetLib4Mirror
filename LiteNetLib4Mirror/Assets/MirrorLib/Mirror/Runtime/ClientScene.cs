@@ -19,7 +19,7 @@ namespace Mirror
 
         public static Dictionary<Guid, GameObject> prefabs = new Dictionary<Guid, GameObject>();
         // scene id to NetworkIdentity
-        public static Dictionary<uint, NetworkIdentity> spawnableObjects;
+        public static Dictionary<ulong, NetworkIdentity> spawnableObjects;
 
         // spawn handlers
         internal static Dictionary<Guid, SpawnDelegate> spawnHandlers = new Dictionary<Guid, SpawnDelegate>();
@@ -46,13 +46,13 @@ namespace Mirror
             // NOTE: It can be "normal" when changing scenes for the player to be destroyed and recreated.
             // But, the player structures are not cleaned up, we'll just replace the old player
             localPlayer = identity;
-            if (readyConnection == null)
+            if (readyConnection != null)
             {
-                Debug.LogWarning("No ready connection found for setting player controller during InternalAddPlayer");
+                readyConnection.SetPlayerController(identity);
             }
             else
             {
-                readyConnection.SetPlayerController(identity);
+                Debug.LogWarning("No ready connection found for setting player controller during InternalAddPlayer");
             }
         }
 
@@ -172,17 +172,14 @@ namespace Mirror
                                .ToDictionary(identity => identity.sceneId, identity => identity);
         }
 
-        internal static NetworkIdentity SpawnSceneObject(uint sceneId)
+        internal static NetworkIdentity SpawnSceneObject(ulong sceneId)
         {
             if (spawnableObjects.TryGetValue(sceneId, out NetworkIdentity identity))
             {
                 spawnableObjects.Remove(sceneId);
                 return identity;
             }
-            else
-            {
-                Debug.LogWarning("Could not find scene object with sceneid:" + sceneId);
-            }
+            Debug.LogWarning("Could not find scene object with sceneid:" + sceneId.ToString("X"));
             return null;
         }
 
@@ -444,7 +441,7 @@ namespace Mirror
             {
                 Debug.LogError("Spawn scene object not found for " + msg.sceneId + " SpawnableObjects.Count=" + spawnableObjects.Count);
                 // dump the whole spawnable objects dict for easier debugging
-                foreach (KeyValuePair<uint, NetworkIdentity> kvp in spawnableObjects)
+                foreach (KeyValuePair<ulong, NetworkIdentity> kvp in spawnableObjects)
                     Debug.Log("Spawnable: SceneId=" + kvp.Key + " name=" + kvp.Value.name);
                 return;
             }
