@@ -68,6 +68,7 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			if (Host != null)
 			{
+				LiteNetLib4MirrorServer.Peers.Clear();
 				Host.Flush();
 				Host.Stop();
 				Host = null;
