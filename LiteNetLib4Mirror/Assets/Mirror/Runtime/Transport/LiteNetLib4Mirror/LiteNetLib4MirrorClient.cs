@@ -9,7 +9,7 @@ namespace Mirror.LiteNetLib4Mirror
 	{
 		internal static bool IsConnected()
 		{
-			return LiteNetLib4MirrorCore.State == LiteNetLib4MirrorCore.States.Client;
+			return LiteNetLib4MirrorCore.State == LiteNetLib4MirrorCore.States.ClientConnected || LiteNetLib4MirrorCore.State == LiteNetLib4MirrorCore.States.ClientConnecting;
 		}
 
 		internal static void ConnectClient(string code)
@@ -33,7 +33,7 @@ namespace Mirror.LiteNetLib4Mirror
 				LiteNetLib4MirrorCore.Host.Connect(LiteNetLib4MirrorUtils.Parse(LiteNetLib4MirrorTransport.Singleton.clientAddress, LiteNetLib4MirrorTransport.Singleton.port), code);
 
 				LiteNetLib4MirrorTransport.Polling = true;
-				LiteNetLib4MirrorCore.State = LiteNetLib4MirrorCore.States.Client;
+				LiteNetLib4MirrorCore.State = LiteNetLib4MirrorCore.States.ClientConnecting;
 			}
 			catch (Exception ex)
 			{
@@ -42,17 +42,19 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 		}
 
+		private static void OnPeerConnected(NetPeer peer)
+		{
+			LiteNetLib4MirrorCore.State = LiteNetLib4MirrorCore.States.ClientConnected;
+			LiteNetLib4MirrorTransport.Singleton.OnClientConnected.Invoke();
+		}
+
 		private static void OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectinfo)
 		{
+			LiteNetLib4MirrorCore.State = LiteNetLib4MirrorCore.States.Idle;
 			LiteNetLib4MirrorCore.LastDisconnectError = disconnectinfo.SocketErrorCode;
 			LiteNetLib4MirrorCore.LastDisconnectReason = disconnectinfo.Reason;
 			LiteNetLib4MirrorTransport.Singleton.OnClientDisconnected.Invoke();
 			LiteNetLib4MirrorCore.StopTransport();
-		}
-
-		private static void OnPeerConnected(NetPeer peer)
-		{
-			LiteNetLib4MirrorTransport.Singleton.OnClientConnected.Invoke();
 		}
 
 		private static void OnNetworkReceive(NetPeer peer, NetPacketReader reader, DeliveryMethod deliverymethod)

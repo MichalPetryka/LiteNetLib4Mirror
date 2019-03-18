@@ -291,13 +291,7 @@ namespace Mirror
         public static void DisconnectAll()
         {
             DisconnectAllConnections();
-
-            if (s_LocalConnection != null)
-            {
-                s_LocalConnection.Disconnect();
-                s_LocalConnection.Dispose();
-                s_LocalConnection = null;
-            }
+            s_LocalConnection = null;
 
             active = false;
             localClientActive = false;
@@ -309,7 +303,9 @@ namespace Mirror
             {
                 NetworkConnection conn = kvp.Value;
                 conn.Disconnect();
-                OnDisconnected(conn);
+                // call OnDisconnected unless local player in host mode
+                if (conn.connectionId != 0)
+                    OnDisconnected(conn);
                 conn.Dispose();
             }
             connections.Clear();
@@ -417,8 +413,6 @@ namespace Mirror
             }
 
             if (LogFilter.Debug) Debug.Log("Server lost client:" + conn.connectionId);
-            conn.RemoveObservers();
-            conn.Dispose();
         }
 
         static void OnDataReceived(int connectionId, byte[] data)
@@ -977,6 +971,7 @@ namespace Mirror
                     assetId = identity.assetId,
                     position = identity.transform.position,
                     rotation = identity.transform.rotation,
+                    scale = identity.transform.localScale,
 
                     // serialize all components with initialState = true
                     payload = identity.OnSerializeAllSafely(true)
@@ -1002,6 +997,7 @@ namespace Mirror
                     sceneId = identity.sceneId,
                     position = identity.transform.position,
                     rotation = identity.transform.rotation,
+                    scale = identity.transform.localScale,
 
                     // include synch data
                     payload = identity.OnSerializeAllSafely(true)

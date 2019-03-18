@@ -5,7 +5,7 @@ namespace Mirror.LiteNetLib4Mirror
 {
 	public static class LiteNetLib4MirrorCore
 	{
-		public const string TransportVersion = "1.1.2";
+		public const string TransportVersion = "1.1.3";
 		public static SocketError LastError { get; internal set; }
 		public static SocketError LastDisconnectError { get; internal set; }
 		public static DisconnectReason LastDisconnectReason { get; internal set; }
@@ -17,7 +17,8 @@ namespace Mirror.LiteNetLib4Mirror
 			NonInitialized,
 			Idle,
 			Discovery,
-			Client,
+			ClientConnecting,
+			ClientConnected,
 			Server
 		}
 
@@ -29,7 +30,9 @@ namespace Mirror.LiteNetLib4Mirror
 					return "LiteNetLib4Mirror isn't initialized";
 				case States.Idle:
 					return "LiteNetLib4Mirror Transport idle";
-				case States.Client:
+				case States.ClientConnecting:
+					return $"LiteNetLib4Mirror Client Connecting to {LiteNetLib4MirrorTransport.Singleton.clientAddress}:{LiteNetLib4MirrorTransport.Singleton.port}";
+				case States.ClientConnected:
 					return $"LiteNetLib4Mirror Client Connected to {LiteNetLib4MirrorTransport.Singleton.clientAddress}:{LiteNetLib4MirrorTransport.Singleton.port}";
 				case States.Server:
 #if DISABLE_IPV6
@@ -65,7 +68,6 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			if (Host != null)
 			{
-				LiteNetLib4MirrorServer.Peers.Clear();
 				Host.Flush();
 				Host.Stop();
 				Host = null;
