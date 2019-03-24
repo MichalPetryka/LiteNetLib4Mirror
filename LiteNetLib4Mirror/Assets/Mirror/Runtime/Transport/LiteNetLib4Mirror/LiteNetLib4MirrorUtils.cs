@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using LiteNetLib.Utils;
 using LiteNetLib4Mirror.Open.Nat;
 using UnityEngine;
 using UnityEngine.Events;
@@ -23,6 +24,28 @@ namespace Mirror.LiteNetLib4Mirror
 		public static void LogException(Exception exception)
 		{
 			Debug.LogException(exception);
+		}
+
+		public static string ToBase64(string text)
+		{
+			return Convert.ToBase64String(Encoding.UTF8.GetBytes(text));
+		}
+
+		public static string FromBase64(string text)
+		{
+			return Encoding.UTF8.GetString(Convert.FromBase64String(text));
+		}
+
+		public static NetDataWriter ReusePut(NetDataWriter writer, string text, ref string lastText)
+		{
+			if (text != lastText)
+			{
+				lastText = text;
+				writer.Reset();
+				writer.Put(ToBase64(text));
+			}
+
+			return writer;
 		}
 
 		public static string Concatenate(params string[] array)

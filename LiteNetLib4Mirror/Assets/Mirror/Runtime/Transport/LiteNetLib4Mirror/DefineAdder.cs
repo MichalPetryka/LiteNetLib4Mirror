@@ -1,6 +1,5 @@
 #if UNITY_EDITOR
 using System.Collections.Generic;
-using System.Linq;
 using UnityEditor;
 
 namespace Mirror
@@ -13,9 +12,10 @@ namespace Mirror
 		[InitializeOnLoadMethod]
 		static void AddDefineSymbols()
 		{
-			List<string> defines = PlayerSettings.GetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup).Split(';').ToList();
-			if (!defines.Contains("LITENETLIB4MIRROR"))
-				defines.Add("LITENETLIB4MIRROR");
+			HashSet<string> defines = new HashSet<string>(PlayerSettings.GetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup).Split(';'))
+			{
+				"LITENETLIB4MIRROR"
+			};
 			PlayerSettings.SetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup, string.Join(";", defines));
 		}
 	}

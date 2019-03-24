@@ -45,8 +45,6 @@ namespace Mirror
         [HideInInspector] public UnityEventIntByteArray OnServerDataReceived;
         [HideInInspector] public UnityEventIntArraySegmentByte OnServerDataReceivedNonAlloc;
         [HideInInspector] public UnityEventIntException OnServerError;
-
-
         [HideInInspector] public UnityEventInt OnServerDisconnected;
 
         public abstract bool ServerActive();

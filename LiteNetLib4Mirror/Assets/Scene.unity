@@ -889,7 +889,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
     m_TypeName: Mirror.LiteNetLib4Mirror.UnityEventIpEndpointString, Assembly-CSharp,
-      Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  ports: 611e
 --- !u!114 &1886246554
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -955,7 +956,8 @@ MonoBehaviour:
   serverIPv6BindAddress: '::'
   port: 7777
   useUpnP: 1
-  maxConnections: 20
+  maxConnections: 5
+  ipv6Enabled: 1
   channels: 0300000000000000020000000400000001000000
   authCode: 
   updateTime: 5
@@ -971,12 +973,12 @@ MonoBehaviour:
   onClientSocketError:
     m_PersistentCalls:
       m_Calls: []
-    m_TypeName: Mirror.LiteNetLib4Mirror.UnityEventError, Assembly-CSharp, Version=1.0.0.0,
+    m_TypeName: Mirror.LiteNetLib4Mirror.UnityEventError, Assembly-CSharp, Version=0.0.0.0,
       Culture=neutral, PublicKeyToken=null
   onServerSocketError:
     m_PersistentCalls:
       m_Calls: []
-    m_TypeName: Mirror.LiteNetLib4Mirror.UnityEventIntError, Assembly-CSharp, Version=1.0.0.0,
+    m_TypeName: Mirror.LiteNetLib4Mirror.UnityEventIntError, Assembly-CSharp, Version=0.0.0.0,
       Culture=neutral, PublicKeyToken=null
 --- !u!114 &1886246555
 MonoBehaviour:
@@ -999,7 +1001,7 @@ MonoBehaviour:
   onlineScene: 
   transport: {fileID: 1886246554}
   networkAddress: localhost
-  maxConnections: 20
+  maxConnections: 5
   playerPrefab: {fileID: 1240244544407914, guid: b1651eaf8c7564a1c86031dfbb8a7b28,
     type: 3}
   autoCreatePlayer: 1

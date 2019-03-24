@@ -236,6 +236,7 @@ PlayerSettings:
   tvOSManualSigningProvisioningProfileType: 0
   appleEnableAutomaticSigning: 0
   iOSRequireARKit: 0
+  iOSAutomaticallyDetectAndAddCapabilities: 1
   appleEnableProMotion: 0
   clonedFromGUID: 5f34be1353de5cf4398729fda238591b
   templatePackageId: com.unity.template.2d@1.0.1
@@ -496,7 +497,7 @@ PlayerSettings:
   webGLLinkerTarget: 1
   webGLThreadsSupport: 0
   scriptingDefineSymbols:
-    1: NONALLOC_RECEIVE;MIRROR;MIRROR_1726_OR_NEWER;LITENETLIB4MIRROR
+    1: NONALLOC_RECEIVE;LITENETLIB4MIRROR;MIRROR;MIRROR_1726_OR_NEWER
   platformArchitecture: {}
   scriptingBackend:
     Standalone: 1

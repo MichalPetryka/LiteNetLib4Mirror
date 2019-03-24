@@ -2,11 +2,13 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using LiteNetLib;
+using UnityEngine;
 
 namespace Mirror.LiteNetLib4Mirror
 {
 	public static class LiteNetLib4MirrorClient
 	{
+		public static string LastDisconnectReason;
 		internal static bool IsConnected()
 		{
 			return LiteNetLib4MirrorCore.State == LiteNetLib4MirrorCore.States.ClientConnected || LiteNetLib4MirrorCore.State == LiteNetLib4MirrorCore.States.ClientConnecting;
@@ -44,12 +46,18 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static void OnPeerConnected(NetPeer peer)
 		{
+			LastDisconnectReason = null;
 			LiteNetLib4MirrorCore.State = LiteNetLib4MirrorCore.States.ClientConnected;
 			LiteNetLib4MirrorTransport.Singleton.OnClientConnected.Invoke();
 		}
 
 		private static void OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectinfo)
 		{
+			Debug.Log(disconnectinfo.Reason);
+			if (disconnectinfo.AdditionalData.TryGetString(out string reason))
+			{
+				LastDisconnectReason = LiteNetLib4MirrorUtils.FromBase64(reason);
+			}
 			LiteNetLib4MirrorCore.State = LiteNetLib4MirrorCore.States.Idle;
 			LiteNetLib4MirrorCore.LastDisconnectError = disconnectinfo.SocketErrorCode;
 			LiteNetLib4MirrorCore.LastDisconnectReason = disconnectinfo.Reason;

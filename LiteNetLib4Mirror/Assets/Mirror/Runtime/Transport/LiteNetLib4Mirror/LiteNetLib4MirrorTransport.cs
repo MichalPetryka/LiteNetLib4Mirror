@@ -1,12 +1,10 @@
 using System;
-using System.Text;
 using LiteNetLib;
 using LiteNetLib4Mirror.Open.Nat;
 using UnityEngine;
 
 namespace Mirror.LiteNetLib4Mirror
 {
-	[RequireComponent(typeof(NetworkManager))]
 	public class LiteNetLib4MirrorTransport : Transport, ISegmentTransport
 	{
 		public static LiteNetLib4MirrorTransport Singleton;
@@ -31,6 +29,9 @@ namespace Mirror.LiteNetLib4Mirror
 #endif
 		public bool useUpnP = true;
 		public ushort maxConnections = 20;
+#if !DISABLE_IPV6
+		public bool ipv6Enabled = true;
+#endif
 
 #if UNITY_EDITOR
 		[ArrayRename("Channel")]
@@ -112,10 +113,10 @@ namespace Mirror.LiteNetLib4Mirror
 		#region Overridable methods       
 		protected internal virtual string GenerateCode()
 		{
-			return Convert.ToBase64String(Encoding.UTF8.GetBytes(LiteNetLib4MirrorUtils.Concatenate(Application.productName, Application.companyName, Application.unityVersion, LiteNetLib4MirrorCore.TransportVersion, Singleton.authCode)));
+			return LiteNetLib4MirrorUtils.ToBase64(LiteNetLib4MirrorUtils.Concatenate(Application.productName, Application.companyName, Application.unityVersion, LiteNetLib4MirrorCore.TransportVersion, Singleton.authCode));
 		}
 
-		protected internal virtual void ProcessConnectionRequest(ConnectionRequest request)
+		protected internal virtual void ProcessConnectionRequest(ConnectionRequest request, string code)
 		{
 			if (LiteNetLib4MirrorCore.Host.PeersCount >= maxConnections)
 			{

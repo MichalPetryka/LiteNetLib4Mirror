@@ -143,5 +143,13 @@ namespace Mirror.LiteNetLib4Mirror
 			maxConnections = maxPlayers;
 			return StartServer();
 		}
+
+		public void DisconnectConnection(NetworkConnection conn, string message)
+		{
+			LiteNetLib4MirrorServer.DisconnectMessage = message;
+			conn.Disconnect();
+			conn.Dispose();
+			LiteNetLib4MirrorServer.DisconnectMessage = null;
+		}
 	}
 }

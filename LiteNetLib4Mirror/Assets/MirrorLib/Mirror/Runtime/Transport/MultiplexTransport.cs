@@ -116,7 +116,6 @@ namespace Mirror
                 {
                     OnServerDataReceived.Invoke(FromBaseId(locali, baseConnectionId), data);
                 });
-
                 transport.OnServerDataReceivedNonAlloc.AddListener((baseConnectionId, data) =>
                 {
                     OnServerDataReceivedNonAlloc.Invoke(FromBaseId(locali, baseConnectionId), data);

@@ -3,12 +3,50 @@ using System.Reflection;
 using System.Collections.Generic;
 using System.Net;
 
-#if NETCORE
+#if NETSTANDARD2_0 || NETCOREAPP2_0
 using System.Linq;
 #endif
 
 namespace LiteNetLib.Utils
 {
+    public class InvalidTypeException : ArgumentException
+    {
+        public InvalidTypeException()
+        {
+        }
+
+        public InvalidTypeException(string message) : base(message)
+        {
+        }
+
+        public InvalidTypeException(string message, Exception innerException) : base(message, innerException)
+        {
+        }
+
+        public InvalidTypeException(string message, string paramName) : base(message, paramName)
+        {
+        }
+
+        public InvalidTypeException(string message, string paramName, Exception innerException) : base(message, paramName, innerException)
+        {
+        }
+    }
+
+    public class ParseException : Exception
+    {
+        public ParseException()
+        {
+        }
+
+        public ParseException(string message) : base(message)
+        {
+        }
+
+        public ParseException(string message, Exception innerException) : base(message, innerException)
+        {
+        }
+    }
+    
     public sealed class NetSerializer
     {
         private sealed class NestedType
@@ -26,35 +64,30 @@ namespace LiteNetLib.Utils
         private delegate void NestedTypeWriter(NetDataWriter writer, object customObj);
         private delegate object NestedTypeReader(NetDataReader reader);
 
-        private sealed class StructInfo
+        private sealed class ClassInfo<T>
         {
-            public readonly Action<NetDataWriter>[] WriteDelegate;
-            public readonly Action<NetDataReader>[] ReadDelegate;
-            public object Reference;
+            public static ClassInfo<T> Instance;
+            public readonly Action<T, NetDataWriter>[] WriteDelegate;
+            public readonly Action<T, NetDataReader>[] ReadDelegate;
             private readonly int _membersCount;
 
-            public StructInfo(int membersCount)
+            public ClassInfo(int membersCount)
             {
                 _membersCount = membersCount;
-                WriteDelegate = new Action<NetDataWriter>[membersCount];
-                ReadDelegate = new Action<NetDataReader>[membersCount];
+                WriteDelegate = new Action<T, NetDataWriter>[membersCount];
+                ReadDelegate = new Action<T, NetDataReader>[membersCount];
             }
 
-            public void Write(NetDataWriter writer, object obj)
+            public void Write(T obj, NetDataWriter writer)
             {
-                Reference = obj;
                 for (int i = 0; i < _membersCount; i++)
-                {
-                    WriteDelegate[i](writer);
-                }
+                    WriteDelegate[i](obj, writer);
             }
 
-            public void Read(NetDataReader reader)
+            public void Read(T obj, NetDataReader reader)
             {
                 for (int i = 0; i < _membersCount; i++)
-                {
-                    ReadDelegate[i](reader);
-                }
+                    ReadDelegate[i](obj, reader);
             }
         }
 
@@ -78,7 +111,6 @@ namespace LiteNetLib.Utils
 
         private readonly NetDataWriter _writer;
         private readonly int _maxStringLength;
-        private readonly Dictionary<string, StructInfo> _registeredTypes;
         private readonly Dictionary<Type, NestedType> _registeredNestedTypes;
 
         public NetSerializer() : this(0)
@@ -89,7 +121,6 @@ namespace LiteNetLib.Utils
         public NetSerializer(int maxStringLength)
         {
             _maxStringLength = maxStringLength;
-            _registeredTypes = new Dictionary<string, StructInfo>();
             _registeredNestedTypes = new Dictionary<Type, NestedType>();
             _writer = new NetDataWriter();
         }
@@ -98,9 +129,7 @@ namespace LiteNetLib.Utils
         {
             var t = typeof(T);
             if (_registeredNestedTypes.ContainsKey(t))
-            {
                 return false;
-            }
 
             var rwDelegates = new NestedType(
                 (writer, obj) =>
@@ -147,9 +176,7 @@ namespace LiteNetLib.Utils
         {
             var t = typeof(T);
             if (BasicTypes.Contains(t) || _registeredNestedTypes.ContainsKey(t))
-            {
                 return false;
-            }
 
             var rwDelegates = new NestedType(
                 (writer, obj) => writeDelegate(writer, (T)obj),
@@ -161,7 +188,7 @@ namespace LiteNetLib.Utils
 
         private static Delegate CreateDelegate(Type type, MethodInfo info)
         {
-#if NETCORE
+#if NETSTANDARD2_0 || NETCOREAPP2_0
             return info.CreateDelegate(type);
 #else
             return Delegate.CreateDelegate(type, info);
@@ -178,17 +205,13 @@ namespace LiteNetLib.Utils
             return (Action<TClass, TProperty>)CreateDelegate(typeof(Action<TClass, TProperty>), info);
         }
 
-        private StructInfo RegisterInternal<T>()
+        private ClassInfo<T> RegisterInternal<T>()
         {
-            Type t = typeof(T);
-            string typeName = t.FullName;
-            StructInfo info;
-            if (_registeredTypes.TryGetValue(typeName, out info))
-            {
-                return info;
-            }
+            if (ClassInfo<T>.Instance != null)
+                return ClassInfo<T>.Instance;
 
-#if NETCORE
+            Type t = typeof(T);
+#if NETSTANDARD2_0 || NETCOREAPP2_0
             var props = t.GetRuntimeProperties().ToArray();
 #else
             var props = t.GetProperties(
@@ -199,17 +222,15 @@ namespace LiteNetLib.Utils
 #endif
             int propsCount = props.Length;
             if (props == null)
-            {
                 throw new InvalidTypeException("Type does not contain acceptable fields");
-            }
 
-            info = new StructInfo(propsCount);
+            var info = new ClassInfo<T>(propsCount);
             for (int i = 0; i < propsCount; i++)
             {
                 var property = props[i];
                 var propertyType = property.PropertyType;
 
-#if NETCORE
+#if NETSTANDARD2_0 || NETCOREAPP2_0
                 bool isEnum = propertyType.GetTypeInfo().IsEnum;
                 var getMethod = property.GetMethod;
                 var setMethod = property.SetMethod;
@@ -223,24 +244,24 @@ namespace LiteNetLib.Utils
                     var underlyingType = Enum.GetUnderlyingType(propertyType);
                     if (underlyingType == typeof(byte))
                     {
-                        info.ReadDelegate[i] = reader =>
+                        info.ReadDelegate[i] = (inf, r) =>
                         {
-                            property.SetValue(info.Reference, Enum.ToObject(propertyType, reader.GetByte()), null);
+                            property.SetValue(inf, Enum.ToObject(propertyType, r.GetByte()), null);
                         };
-                        info.WriteDelegate[i] = writer =>
+                        info.WriteDelegate[i] = (inf, w) =>
                         {
-                            writer.Put((byte)property.GetValue(info.Reference, null));
+                            w.Put((byte)property.GetValue(inf, null));
                         };
                     }
                     else if (underlyingType == typeof(int))
                     {
-                        info.ReadDelegate[i] = reader =>
+                        info.ReadDelegate[i] = (inf, r) =>
                         {
-                            property.SetValue(info.Reference, Enum.ToObject(propertyType, reader.GetInt()), null);
+                            property.SetValue(inf, Enum.ToObject(propertyType, r.GetInt()), null);
                         };
-                        info.WriteDelegate[i] = writer =>
+                        info.WriteDelegate[i] = (inf, w) =>
                         {
-                            writer.Put((int)property.GetValue(info.Reference, null));
+                            w.Put((int)property.GetValue(inf, null));
                         };
                     }
                     else
@@ -254,105 +275,105 @@ namespace LiteNetLib.Utils
                     var getDelegate = ExtractGetDelegate<T, string>(getMethod);
                     if (_maxStringLength <= 0)
                     {
-                        info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetString());
-                        info.WriteDelegate[i] = writer => writer.Put(getDelegate((T)info.Reference));
+                        info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetString());
+                        info.WriteDelegate[i] = (inf, w) => w.Put(getDelegate(inf));
                     }
                     else
                     {
-                        info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetString(_maxStringLength));
-                        info.WriteDelegate[i] = writer => writer.Put(getDelegate((T)info.Reference), _maxStringLength);
+                        info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetString(_maxStringLength));
+                        info.WriteDelegate[i] = (inf, w) => w.Put(getDelegate(inf), _maxStringLength);
                     }
                 }
                 else if (propertyType == typeof(bool))
                 {
                     var setDelegate = ExtractSetDelegate<T, bool>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, bool>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetBool());
-                    info.WriteDelegate[i] = writer => writer.Put(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetBool());
+                    info.WriteDelegate[i] = (inf, w) => w.Put(getDelegate(inf));
                 }
                 else if (propertyType == typeof(byte))
                 {
                     var setDelegate = ExtractSetDelegate<T, byte>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, byte>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetByte());
-                    info.WriteDelegate[i] = writer => writer.Put(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetByte());
+                    info.WriteDelegate[i] = (inf, w) => w.Put(getDelegate(inf));
                 }
                 else if (propertyType == typeof(sbyte))
                 {
                     var setDelegate = ExtractSetDelegate<T, sbyte>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, sbyte>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetSByte());
-                    info.WriteDelegate[i] = writer => writer.Put(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetSByte());
+                    info.WriteDelegate[i] = (inf, w) => w.Put(getDelegate(inf));
                 }
                 else if (propertyType == typeof(short))
                 {
                     var setDelegate = ExtractSetDelegate<T, short>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, short>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetShort());
-                    info.WriteDelegate[i] = writer => writer.Put(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetShort());
+                    info.WriteDelegate[i] = (inf, w) => w.Put(getDelegate(inf));
                 }
                 else if (propertyType == typeof(ushort))
                 {
                     var setDelegate = ExtractSetDelegate<T, ushort>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, ushort>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetUShort());
-                    info.WriteDelegate[i] = writer => writer.Put(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetUShort());
+                    info.WriteDelegate[i] = (inf, w) => w.Put(getDelegate(inf));
                 }
                 else if (propertyType == typeof(int))
                 {
                     var setDelegate = ExtractSetDelegate<T, int>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, int>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetInt());
-                    info.WriteDelegate[i] = writer => writer.Put(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetInt());
+                    info.WriteDelegate[i] = (inf, w) => w.Put(getDelegate(inf));
                 }
                 else if (propertyType == typeof(uint))
                 {
                     var setDelegate = ExtractSetDelegate<T, uint>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, uint>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetUInt());
-                    info.WriteDelegate[i] = writer => writer.Put(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetUInt());
+                    info.WriteDelegate[i] = (inf, w) => w.Put(getDelegate(inf));
                 }
                 else if (propertyType == typeof(long))
                 {
                     var setDelegate = ExtractSetDelegate<T, long>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, long>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetLong());
-                    info.WriteDelegate[i] = writer => writer.Put(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetLong());
+                    info.WriteDelegate[i] = (inf, w) => w.Put(getDelegate(inf));
                 }
                 else if (propertyType == typeof(ulong))
                 {
                     var setDelegate = ExtractSetDelegate<T, ulong>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, ulong>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetULong());
-                    info.WriteDelegate[i] = writer => writer.Put(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetULong());
+                    info.WriteDelegate[i] = (inf, w) => w.Put(getDelegate(inf));
                 }
                 else if (propertyType == typeof(float))
                 {
                     var setDelegate = ExtractSetDelegate<T, float>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, float>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetFloat());
-                    info.WriteDelegate[i] = writer => writer.Put(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetFloat());
+                    info.WriteDelegate[i] = (inf, w) => w.Put(getDelegate(inf));
                 }
                 else if (propertyType == typeof(double))
                 {
                     var setDelegate = ExtractSetDelegate<T, double>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, double>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetDouble());
-                    info.WriteDelegate[i] = writer => writer.Put(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetDouble());
+                    info.WriteDelegate[i] = (inf, w) => w.Put(getDelegate(inf));
                 }
                 else if (propertyType == typeof(char))
                 {
                     var setDelegate = ExtractSetDelegate<T, char>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, char>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetChar());
-                    info.WriteDelegate[i] = writer => writer.Put(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetChar());
+                    info.WriteDelegate[i] = (inf, w) => w.Put(getDelegate(inf));
                 }
                 else if (propertyType == typeof(IPEndPoint))
                 {
                     var setDelegate = ExtractSetDelegate<T, IPEndPoint>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, IPEndPoint>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetNetEndPoint());
-                    info.WriteDelegate[i] = writer => writer.Put(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetNetEndPoint());
+                    info.WriteDelegate[i] = (inf, w) => w.Put(getDelegate(inf));
                 }
                 // Array types
                 else if (propertyType == typeof(string[]))
@@ -362,87 +383,87 @@ namespace LiteNetLib.Utils
                     if (_maxStringLength <= 0)
                     {
                         info.ReadDelegate[i] =
-                            reader => setDelegate((T) info.Reference, reader.GetStringArray());
+                            (inf, r) => setDelegate( inf, r.GetStringArray());
                         info.WriteDelegate[i] =
-                            writer => writer.PutArray(getDelegate((T) info.Reference));
+                            (inf, w) => w.PutArray(getDelegate( inf));
                     }
                     else
                     {
                         info.ReadDelegate[i] =
-                            reader => setDelegate((T)info.Reference, reader.GetStringArray(_maxStringLength));
+                            (inf, r) => setDelegate(inf, r.GetStringArray(_maxStringLength));
                         info.WriteDelegate[i] =
-                            writer => writer.PutArray(getDelegate((T)info.Reference), _maxStringLength);
+                            (inf, w) => w.PutArray(getDelegate(inf), _maxStringLength);
                     }
                 }
                 else if (propertyType == typeof(bool[]))
                 {
                     var setDelegate = ExtractSetDelegate<T, bool[]>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, bool[]>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetBoolArray());
-                    info.WriteDelegate[i] = writer => writer.PutArray(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetBoolArray());
+                    info.WriteDelegate[i] = (inf, w) => w.PutArray(getDelegate(inf));
                 }
                 else if (propertyType == typeof(byte[]))
                 {
                     var setDelegate = ExtractSetDelegate<T, byte[]>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, byte[]>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetBytesWithLength());
-                    info.WriteDelegate[i] = writer => writer.PutBytesWithLength(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetBytesWithLength());
+                    info.WriteDelegate[i] = (inf, w) => w.PutBytesWithLength(getDelegate(inf));
                 }
                 else if (propertyType == typeof(short[]))
                 {
                     var setDelegate = ExtractSetDelegate<T, short[]>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, short[]>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetShortArray());
-                    info.WriteDelegate[i] = writer => writer.PutArray(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetShortArray());
+                    info.WriteDelegate[i] = (inf, w) => w.PutArray(getDelegate(inf));
                 }
                 else if (propertyType == typeof(ushort[]))
                 {
                     var setDelegate = ExtractSetDelegate<T, ushort[]>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, ushort[]>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetUShortArray());
-                    info.WriteDelegate[i] = writer => writer.PutArray(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetUShortArray());
+                    info.WriteDelegate[i] = (inf, w) => w.PutArray(getDelegate(inf));
                 }
                 else if (propertyType == typeof(int[]))
                 {
                     var setDelegate = ExtractSetDelegate<T, int[]>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, int[]>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetIntArray());
-                    info.WriteDelegate[i] = writer => writer.PutArray(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetIntArray());
+                    info.WriteDelegate[i] = (inf, w) => w.PutArray(getDelegate(inf));
                 }
                 else if (propertyType == typeof(uint[]))
                 {
                     var setDelegate = ExtractSetDelegate<T, uint[]>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, uint[]>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetUIntArray());
-                    info.WriteDelegate[i] = writer => writer.PutArray(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetUIntArray());
+                    info.WriteDelegate[i] = (inf, w) => w.PutArray(getDelegate(inf));
                 }
                 else if (propertyType == typeof(long[]))
                 {
                     var setDelegate = ExtractSetDelegate<T, long[]>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, long[]>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetLongArray());
-                    info.WriteDelegate[i] = writer => writer.PutArray(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetLongArray());
+                    info.WriteDelegate[i] = (inf, w) => w.PutArray(getDelegate(inf));
                 }
                 else if (propertyType == typeof(ulong[]))
                 {
                     var setDelegate = ExtractSetDelegate<T, ulong[]>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, ulong[]>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetULongArray());
-                    info.WriteDelegate[i] = writer => writer.PutArray(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetULongArray());
+                    info.WriteDelegate[i] = (inf, w) => w.PutArray(getDelegate(inf));
                 }
                 else if (propertyType == typeof(float[]))
                 {
                     var setDelegate = ExtractSetDelegate<T, float[]>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, float[]>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetFloatArray());
-                    info.WriteDelegate[i] = writer => writer.PutArray(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetFloatArray());
+                    info.WriteDelegate[i] = (inf, w) => w.PutArray(getDelegate(inf));
                 }
                 else if (propertyType == typeof(double[]))
                 {
                     var setDelegate = ExtractSetDelegate<T, double[]>(setMethod);
                     var getDelegate = ExtractGetDelegate<T, double[]>(getMethod);
-                    info.ReadDelegate[i] = reader => setDelegate((T)info.Reference, reader.GetDoubleArray());
-                    info.WriteDelegate[i] = writer => writer.PutArray(getDelegate((T)info.Reference));
+                    info.ReadDelegate[i] = (inf, r) => setDelegate(inf, r.GetDoubleArray());
+                    info.WriteDelegate[i] = (inf, w) => w.PutArray(getDelegate(inf));
                 }
                 else
                 {
@@ -459,38 +480,38 @@ namespace LiteNetLib.Utils
                     {
                         if (array) //Array type serialize/deserialize
                         {
-                            info.ReadDelegate[i] = reader =>
+                            info.ReadDelegate[i] = (inf, r) =>
                             {
-                                ushort arrLength = reader.GetUShort();
+                                ushort arrLength = r.GetUShort();
                                 Array arr = Array.CreateInstance(propertyType, arrLength);
                                 for (int k = 0; k < arrLength; k++)
                                 {
-                                    arr.SetValue(registeredNestedType.ReadDelegate(reader), k);
+                                    arr.SetValue(registeredNestedType.ReadDelegate(r), k);
                                 }
 
-                                property.SetValue(info.Reference, arr, null);
+                                property.SetValue(inf, arr, null);
                             };
 
-                            info.WriteDelegate[i] = writer =>
+                            info.WriteDelegate[i] = (inf, w) =>
                             {
-                                Array arr = (Array)property.GetValue(info.Reference, null);
-                                writer.Put((ushort)arr.Length);
+                                Array arr = (Array)property.GetValue(inf, null);
+                                w.Put((ushort)arr.Length);
                                 for (int k = 0; k < arr.Length; k++)
                                 {
-                                    registeredNestedType.WriteDelegate(writer, arr.GetValue(k));
+                                    registeredNestedType.WriteDelegate(w, arr.GetValue(k));
                                 }
                             };
                         }
                         else //Simple
                         {
-                            info.ReadDelegate[i] = reader =>
+                            info.ReadDelegate[i] = (inf, r) =>
                             {
-                                property.SetValue(info.Reference, registeredNestedType.ReadDelegate(reader), null);
+                                property.SetValue(inf, registeredNestedType.ReadDelegate(r), null);
                             };
 
-                            info.WriteDelegate[i] = writer =>
+                            info.WriteDelegate[i] = (inf, w) =>
                             {
-                                registeredNestedType.WriteDelegate(writer, property.GetValue(info.Reference, null));
+                                registeredNestedType.WriteDelegate(w, property.GetValue(inf, null));
                             };
                         }
                     }
@@ -500,8 +521,7 @@ namespace LiteNetLib.Utils
                     }
                 }
             }
-            _registeredTypes.Add(typeName, info);
-
+            ClassInfo<T>.Instance = info;
             return info;
         }
 
@@ -520,16 +540,16 @@ namespace LiteNetLib.Utils
         public T Deserialize<T>(NetDataReader reader) where T : class, new()
         {
             var info = RegisterInternal<T>();
-            info.Reference = new T();
+            var result = new T();
             try
             {
-                info.Read(reader);
+                info.Read(result, reader);
             }
             catch
             {
                 return null;
             }
-            return (T)info.Reference;
+            return result;
         }
 
         /// <summary>
@@ -542,10 +562,9 @@ namespace LiteNetLib.Utils
         public bool Deserialize<T>(NetDataReader reader, T target) where T : class, new()
         {
             var info = RegisterInternal<T>();
-            info.Reference = target;
             try
             {
-                info.Read(reader);
+                info.Read(target, reader);
             }
             catch
             {
@@ -562,7 +581,7 @@ namespace LiteNetLib.Utils
         /// <exception cref="InvalidTypeException"><typeparamref name="T"/>'s fields are not supported, or it has no fields</exception>
         public void Serialize<T>(NetDataWriter writer, T obj) where T : class, new()
         {
-            RegisterInternal<T>().Write(writer, obj);
+            RegisterInternal<T>().Write(obj, writer);
         }
 
         /// <summary>

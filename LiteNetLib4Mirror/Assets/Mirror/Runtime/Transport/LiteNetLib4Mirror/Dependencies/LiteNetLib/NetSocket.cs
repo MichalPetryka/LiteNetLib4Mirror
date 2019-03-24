@@ -1,7 +1,7 @@
 #if UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
 #define UNITY
 #endif
-#if NETCORE
+#if NETSTANDARD2_0 || NETCOREAPP2_0
 using System.Runtime.InteropServices;
 #endif
 
@@ -109,7 +109,7 @@ namespace LiteNetLib
             }
         }
 
-        public bool Bind(IPAddress addressIPv4, IPAddress addressIPv6, int port, bool reuseAddress)
+        public bool Bind(IPAddress addressIPv4, IPAddress addressIPv6, int port, bool reuseAddress, bool ipv6)
         {
             _udpSocketv4 = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             if (!BindSocket(_udpSocketv4, new IPEndPoint(addressIPv4, port), reuseAddress))
@@ -122,7 +122,7 @@ namespace LiteNetLib
             _threadv4.Start(_udpSocketv4);
 
             //Check IPv6 support
-            if (!IPv6Support)
+            if (!IPv6Support || !ipv6)
                 return true;
 
             _udpSocketv6 = new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp);
@@ -172,7 +172,7 @@ namespace LiteNetLib
             {
                 socket.Ttl = NetConstants.SocketTTL;
 
-#if NETCORE
+#if NETSTANDARD2_0 || NETCOREAPP2_0
                 if(!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
 #endif
                 try { socket.DontFragment = true; }

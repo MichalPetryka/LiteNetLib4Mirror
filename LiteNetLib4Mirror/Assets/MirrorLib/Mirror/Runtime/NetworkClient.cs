@@ -69,7 +69,7 @@ namespace Mirror
             connection.SetHandlers(handlers);
         }
 
-        private void InitializeTransportHandlers()
+        void InitializeTransportHandlers()
         {
             Transport.activeTransport.OnClientConnected.AddListener(OnConnected);
             Transport.activeTransport.OnClientDataReceived.AddListener(OnDataReceived);
@@ -168,7 +168,7 @@ namespace Mirror
             return false;
         }
 
-        public bool Send<T>(T message) where T : MessageBase
+        public bool Send<T>(T message) where T : IMessageBase
         {
             if (connection != null)
             {
@@ -294,7 +294,7 @@ namespace Mirror
             RegisterHandler((int)msgType, handler);
         }
 
-        public void RegisterHandler<T>(Action<NetworkConnection, T> handler) where T : MessageBase, new()
+        public void RegisterHandler<T>(Action<NetworkConnection, T> handler) where T : IMessageBase, new()
         {
             int msgType = MessagePacker.GetId<T>();
             if (handlers.ContainsKey(msgType))
@@ -319,7 +319,7 @@ namespace Mirror
             UnregisterHandler((int)msgType);
         }
 
-        public void UnregisterHandler<T>() where T : MessageBase
+        public void UnregisterHandler<T>() where T : IMessageBase
         {
             // use int to minimize collisions
             int msgType = MessagePacker.GetId<T>();
@@ -331,19 +331,18 @@ namespace Mirror
             singleton?.Update();
         }
 
-        public void Shutdown()
+        public static void Shutdown()
         {
             if (LogFilter.Debug) Debug.Log("Shutting down client.");
             singleton = null;
             active = false;
+            ClientScene.Shutdown();
         }
 
+        [Obsolete("Call NetworkClient.Shutdown() instead. There is only one client.")]
         public static void ShutdownAll()
         {
-            singleton?.Shutdown();
-            singleton = null;
-            active = false;
-            ClientScene.Shutdown();
+            Shutdown();
         }
     }
 }
