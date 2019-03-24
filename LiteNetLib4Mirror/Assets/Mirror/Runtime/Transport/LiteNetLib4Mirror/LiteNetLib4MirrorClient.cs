@@ -2,7 +2,6 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using LiteNetLib;
-using UnityEngine;
 
 namespace Mirror.LiteNetLib4Mirror
 {
@@ -53,7 +52,6 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static void OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectinfo)
 		{
-			Debug.Log(disconnectinfo.Reason);
 			if (disconnectinfo.AdditionalData.TryGetString(out string reason))
 			{
 				LastDisconnectReason = LiteNetLib4MirrorUtils.FromBase64(reason);
