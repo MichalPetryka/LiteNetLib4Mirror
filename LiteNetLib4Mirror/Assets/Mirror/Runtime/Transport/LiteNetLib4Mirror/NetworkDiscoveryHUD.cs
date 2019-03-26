@@ -30,35 +30,24 @@ namespace Mirror.LiteNetLib4Mirror
 				return;
 			}
 
-			bool noConnection = NetworkManager.singleton.client == null ||
-								NetworkManager.singleton.client.connection == null ||
-								NetworkManager.singleton.client.connection.connectionId == -1;
-
 			GUILayout.BeginArea(new Rect(10 + _managerHud.offsetX + 215 + 10, 40 + _managerHud.offsetY, 215, 9999));
 			if (!NetworkManager.singleton.IsClientConnected() && !NetworkServer.active)
 			{
-				if (noConnection)
+				if (_noDiscovering)
 				{
-					if (_noDiscovering)
+					if (GUILayout.Button("Start Discovery"))
 					{
-						if (GUILayout.Button("Start Discovery"))
-						{
-							StartCoroutine(StartDiscovery());
-						}
-					}
-					else
-					{
-						GUILayout.Label("Discovering..");
-						GUILayout.Label($"LocalPort: {LiteNetLib4MirrorTransport.Singleton.port}");
-						if (GUILayout.Button("Stop Discovery"))
-						{
-							_noDiscovering = true;
-						}
+						StartCoroutine(StartDiscovery());
 					}
 				}
 				else
 				{
-					_noDiscovering = true;
+					GUILayout.Label("Discovering..");
+					GUILayout.Label($"LocalPort: {LiteNetLib4MirrorTransport.Singleton.port}");
+					if (GUILayout.Button("Stop Discovery"))
+					{
+						_noDiscovering = true;
+					}
 				}
 			}
 			else
