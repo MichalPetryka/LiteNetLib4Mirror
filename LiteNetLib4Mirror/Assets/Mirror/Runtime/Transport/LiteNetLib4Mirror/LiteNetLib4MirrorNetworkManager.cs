@@ -24,7 +24,7 @@ namespace Mirror.LiteNetLib4Mirror
 		/// </summary>
 		/// <param name="ip">IP to connect</param>
 		/// <param name="port">Port</param>
-		public NetworkClient StartClient(string ip, ushort port)
+		public void StartClient(string ip, ushort port)
 		{
 			networkAddress = ip;
 			maxConnections = 2;
@@ -32,7 +32,7 @@ namespace Mirror.LiteNetLib4Mirror
 			LiteNetLib4MirrorTransport.Singleton.port = port;
 			LiteNetLib4MirrorTransport.Singleton.maxConnections = 2;
 			maxConnections = 2;
-			return StartClient();
+			StartClient();
 		}
 
 #if DISABLE_IPV6
@@ -52,9 +52,9 @@ namespace Mirror.LiteNetLib4Mirror
 		/// <param name="maxPlayers">Connection limit</param>
 #endif
 #if DISABLE_IPV6
-		public NetworkClient StartHost(string serverIPv4BindAddress, ushort port, ushort maxPlayers)
+		public void StartHost(string serverIPv4BindAddress, ushort port, ushort maxPlayers)
 #else
-		public NetworkClient StartHost(string serverIPv4BindAddress, string serverIPv6BindAddress, ushort port, ushort maxPlayers)
+		public void StartHost(string serverIPv4BindAddress, string serverIPv6BindAddress, ushort port, ushort maxPlayers)
 #endif
 		{
 			networkAddress = serverIPv4BindAddress;
@@ -67,7 +67,7 @@ namespace Mirror.LiteNetLib4Mirror
 			LiteNetLib4MirrorTransport.Singleton.port = port;
 			LiteNetLib4MirrorTransport.Singleton.maxConnections = maxPlayers;
 			maxConnections = maxPlayers;
-			return StartHost();
+			StartHost();
 		}
 
 #if DISABLE_IPV6
@@ -110,7 +110,7 @@ namespace Mirror.LiteNetLib4Mirror
 		/// </summary>
 		/// <param name="port">Port</param>
 		/// <param name="maxPlayers">Connection limit</param>
-		public NetworkClient StartHost(ushort port, ushort maxPlayers)
+		public void StartHost(ushort port, ushort maxPlayers)
 		{
 			networkAddress = "127.0.0.1";
 			maxConnections = maxPlayers;
@@ -122,7 +122,7 @@ namespace Mirror.LiteNetLib4Mirror
 			LiteNetLib4MirrorTransport.Singleton.port = port;
 			LiteNetLib4MirrorTransport.Singleton.maxConnections = maxPlayers;
 			maxConnections = maxPlayers;
-			return StartHost();
+			StartHost();
 		}
 
 		/// <summary>
