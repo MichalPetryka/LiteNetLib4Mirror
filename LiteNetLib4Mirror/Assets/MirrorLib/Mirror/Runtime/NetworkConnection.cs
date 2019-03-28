@@ -14,7 +14,7 @@ namespace Mirror
         public bool isReady;
         public string address;
         public float lastMessageTime;
-        public NetworkIdentity playerController { get; private set; }
+        public NetworkIdentity playerController { get; internal set; }
         public HashSet<uint> clientOwnedObjects;
         public bool logNetworkMessages;
 
@@ -86,14 +86,13 @@ namespace Mirror
             if (Transport.activeTransport.ServerActive() && connectionId != 0)
             {
                 Transport.activeTransport.ServerDisconnect(connectionId);
-            }            
+            }
             // not server and not host mode? then disconnect client
             else
             {
                 Transport.activeTransport.ClientDisconnect();
             }
 
-            // remove observers
             RemoveObservers();
         }
 
@@ -114,16 +113,6 @@ namespace Mirror
         public void UnregisterHandler(short msgType)
         {
             m_MessageHandlers.Remove(msgType);
-        }
-
-        internal void SetPlayerController(NetworkIdentity player)
-        {
-            playerController = player;
-        }
-
-        internal void RemovePlayerController()
-        {
-            playerController = null;
         }
 
         [Obsolete("use Send<T> instead")]

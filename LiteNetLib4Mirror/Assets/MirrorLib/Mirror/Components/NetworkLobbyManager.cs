@@ -195,12 +195,6 @@ namespace Mirror
             OnLobbyServerDisconnect(conn);
         }
 
-        [System.Obsolete("Use OnServerAddPlayer(NetworkConnection conn, AddPlayerMessage extraMessage) instead")]
-        public override void OnServerAddPlayer(NetworkConnection conn)
-        {
-            OnServerAddPlayer(conn, null);
-        }
-
         public override void OnServerAddPlayer(NetworkConnection conn, AddPlayerMessage extraMessage)
         {
             if (SceneManager.GetActiveScene().name != LobbyScene) return;
@@ -328,7 +322,7 @@ namespace Mirror
 
         #region client handlers
 
-        public override void OnStartClient(NetworkClient lobbyClient)
+        public override void OnStartClient()
         {
             if (lobbyPlayerPrefab == null || lobbyPlayerPrefab.gameObject == null)
                 Debug.LogError("NetworkLobbyManager no LobbyPlayer prefab is registered. Please add a LobbyPlayer prefab.");
@@ -340,7 +334,7 @@ namespace Mirror
             else
                 ClientScene.RegisterPrefab(playerPrefab);
 
-            OnLobbyStartClient(lobbyClient);
+            OnLobbyStartClient();
         }
 
         public override void OnClientConnect(NetworkConnection conn)
@@ -373,9 +367,9 @@ namespace Mirror
         {
             if (LogFilter.Debug) Debug.LogFormat("OnClientChangeScene from {0} to {1}", SceneManager.GetActiveScene().name, newSceneName);
 
-            if (SceneManager.GetActiveScene().name == LobbyScene && newSceneName == GameplayScene && dontDestroyOnLoad && IsClientConnected() && client != null)
+            if (SceneManager.GetActiveScene().name == LobbyScene && newSceneName == GameplayScene && dontDestroyOnLoad && NetworkClient.isConnected)
             {
-                GameObject lobbyPlayer = client?.connection?.playerController?.gameObject;
+                GameObject lobbyPlayer = NetworkClient.connection?.playerController?.gameObject;
                 if (lobbyPlayer != null)
                 {
                     lobbyPlayer.transform.SetParent(null);
@@ -385,14 +379,14 @@ namespace Mirror
                     Debug.LogWarningFormat("OnClientChangeScene: lobbyPlayer is null");
             }
             else
-               if (LogFilter.Debug) Debug.LogFormat("OnClientChangeScene {0} {1} {2}", dontDestroyOnLoad, IsClientConnected(), client != null);
+               if (LogFilter.Debug) Debug.LogFormat("OnClientChangeScene {0} {1}", dontDestroyOnLoad, NetworkClient.isConnected);
         }
 
         public override void OnClientSceneChanged(NetworkConnection conn)
         {
             if (SceneManager.GetActiveScene().name == LobbyScene)
             {
-                if (client.isConnected)
+                if (NetworkClient.isConnected)
                     CallOnClientEnterLobby();
             }
             else
@@ -452,7 +446,7 @@ namespace Mirror
 
         public virtual void OnLobbyClientDisconnect(NetworkConnection conn) {}
 
-        public virtual void OnLobbyStartClient(NetworkClient lobbyClient) {}
+        public virtual void OnLobbyStartClient() {}
 
         public virtual void OnLobbyStopClient() {}
 

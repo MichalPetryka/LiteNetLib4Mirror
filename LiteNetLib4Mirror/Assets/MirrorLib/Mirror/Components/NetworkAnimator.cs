@@ -67,7 +67,7 @@ namespace Mirror
             }
 
             NetworkWriter writer = new NetworkWriter();
-            WriteParameters(writer, false);
+            WriteParameters(writer);
 
             SendAnimationMessage(stateHash, normalizedTime, writer.ToArray());
         }
@@ -114,7 +114,7 @@ namespace Mirror
                 m_SendTimer = Time.time + syncInterval;
 
                 NetworkWriter writer = new NetworkWriter();
-                if (WriteParameters(writer, true))
+                if (WriteParameters(writer))
                 {
                     SendAnimationParametersMessage(writer.ToArray());
                 }
@@ -145,7 +145,7 @@ namespace Mirror
             }
         }
 
-        internal void HandleAnimMsg(int stateHash, float normalizedTime, NetworkReader reader)
+        void HandleAnimMsg(int stateHash, float normalizedTime, NetworkReader reader)
         {
             if (hasAuthority)
                 return;
@@ -158,79 +158,99 @@ namespace Mirror
                 animator.Play(stateHash, 0, normalizedTime);
             }
 
-            ReadParameters(reader, false);
+            ReadParameters(reader);
         }
 
-        internal void HandleAnimParamsMsg(NetworkReader reader)
+        void HandleAnimParamsMsg(NetworkReader reader)
         {
             if (hasAuthority)
                 return;
 
-            ReadParameters(reader, true);
+            ReadParameters(reader);
         }
 
-        internal void HandleAnimTriggerMsg(int hash)
+        void HandleAnimTriggerMsg(int hash)
         {
             animator.SetTrigger(hash);
         }
 
-        bool WriteParameters(NetworkWriter writer, bool autoSend)
+        ulong NextDirtyBits()
         {
-            uint dirtyBits = 0;
-            // Save the position in the writer where to insert the dirty bits
-            int dirtyBitsPosition = writer.Position;
-            // Reserve the space for the bits
-            writer.Write(dirtyBits);
+            ulong dirtyBits = 0;
             for (int i = 0; i < parameters.Length; i++)
             {
                 AnimatorControllerParameter par = parameters[i];
+                bool changed = false;
                 if (par.type == AnimatorControllerParameterType.Int)
                 {
                     int newIntValue = animator.GetInteger(par.nameHash);
-                    if (newIntValue != lastIntParameters[i])
+                    changed = newIntValue != lastIntParameters[i];
+                    if (changed)
                     {
-                        writer.WritePackedUInt32((uint) newIntValue);
-                        dirtyBits |= 1u << i;
                         lastIntParameters[i] = newIntValue;
                     }
                 }
                 else if (par.type == AnimatorControllerParameterType.Float)
                 {
                     float newFloatValue = animator.GetFloat(par.nameHash);
-                    if (Mathf.Abs(newFloatValue - lastFloatParameters[i]) > 0.001f)
+                    changed = Mathf.Abs(newFloatValue - lastFloatParameters[i]) > 0.001f;
+                    if (changed)
                     {
-                        writer.Write(newFloatValue);
-                        dirtyBits |= 1u << i;
                         lastFloatParameters[i] = newFloatValue;
                     }
                 }
                 else if (par.type == AnimatorControllerParameterType.Bool)
                 {
                     bool newBoolValue = animator.GetBool(par.nameHash);
-                    if (newBoolValue != lastBoolParameters[i])
+                    changed = newBoolValue != lastBoolParameters[i];
+                    if (changed)
                     {
-                        writer.Write(newBoolValue);
-                        dirtyBits |= 1u << i;
                         lastBoolParameters[i] = newBoolValue;
                     }
                 }
+                if (changed)
+                {
+                    dirtyBits |= 1ul << i;
+                }
             }
-            // Save the position we were at to return to after writing dirtyBits
-            int messageEndPosition = writer.Position;
-            // Write the dirty bits into the reserved position
-            writer.Position = dirtyBitsPosition;
-            writer.Write(dirtyBits);
-            // Return to the end position, so that serialization includes parameter data.
-            writer.Position = messageEndPosition;
+            return dirtyBits;
+        }
+
+        bool WriteParameters(NetworkWriter writer)
+        {
+            ulong dirtyBits = NextDirtyBits();
+            writer.WritePackedUInt64(dirtyBits);
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                if ((dirtyBits & (1ul << i)) == 0)
+                    continue;
+
+                AnimatorControllerParameter par = parameters[i];
+                if (par.type == AnimatorControllerParameterType.Int)
+                {
+                    int newIntValue = animator.GetInteger(par.nameHash);
+                    writer.WritePackedUInt32((uint)newIntValue);
+                }
+                else if (par.type == AnimatorControllerParameterType.Float)
+                {
+                    float newFloatValue = animator.GetFloat(par.nameHash);
+                    writer.Write(newFloatValue);
+                }
+                else if (par.type == AnimatorControllerParameterType.Bool)
+                {
+                    bool newBoolValue = animator.GetBool(par.nameHash);
+                    writer.Write(newBoolValue);
+                }
+            }
             return dirtyBits != 0;
         }
 
-        void ReadParameters(NetworkReader reader, bool autoSend)
+        void ReadParameters(NetworkReader reader)
         {
-            uint dirtyBits = reader.ReadUInt32();
+            ulong dirtyBits = reader.ReadPackedUInt64();
             for (int i = 0; i < parameters.Length; i++)
             {
-                if ((dirtyBits & (1 << i)) == 0)
+                if ((dirtyBits & (1ul << i)) == 0)
                     continue;
 
                 AnimatorControllerParameter par = parameters[i];
@@ -268,7 +288,7 @@ namespace Mirror
                     writer.Write(st.fullPathHash);
                     writer.Write(st.normalizedTime);
                 }
-                WriteParameters(writer, false);
+                WriteParameters(writer);
                 return true;
             }
             return false;
@@ -280,7 +300,7 @@ namespace Mirror
             {
                 int stateHash = reader.ReadInt32();
                 float normalizedTime = reader.ReadSingle();
-                ReadParameters(reader, false);
+                ReadParameters(reader);
                 animator.Play(stateHash, 0, normalizedTime);
             }
         }
@@ -294,7 +314,7 @@ namespace Mirror
         {
             if (hasAuthority && localPlayerAuthority)
             {
-                if (NetworkClient.singleton != null && ClientScene.readyConnection != null)
+                if (ClientScene.readyConnection != null)
                 {
                     CmdOnAnimationTriggerServerMessage(hash);
                 }
