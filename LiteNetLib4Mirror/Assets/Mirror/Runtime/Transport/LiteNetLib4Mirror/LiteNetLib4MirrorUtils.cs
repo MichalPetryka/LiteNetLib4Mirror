@@ -86,7 +86,7 @@ namespace Mirror.LiteNetLib4Mirror
 		/// </summary>
 		/// <param name="ports">Available ports</param>
 		/// <returns>First free port in range</returns>
-		public static int GetFirstFreePort(params ushort[] ports)
+		public static ushort GetFirstFreePort(params ushort[] ports)
 		{
 			if (ports == null || ports.Length == 0) throw new Exception("No ports provided");
 			ushort freeport = ports.Except(Array.ConvertAll(IPGlobalProperties.GetIPGlobalProperties().GetActiveUdpListeners(), p => (ushort)p.Port)).FirstOrDefault();
