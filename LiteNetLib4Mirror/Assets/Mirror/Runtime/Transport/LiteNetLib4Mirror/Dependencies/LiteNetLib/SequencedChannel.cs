@@ -22,7 +22,7 @@ namespace LiteNetLib
         {
             if (_reliable && OutgoingQueue.Count == 0)
             {
-                var packet = _lastPacket;
+                NetPacket packet = _lastPacket;
                 if(packet != null)
                     Peer.SendUserData(packet);
             }

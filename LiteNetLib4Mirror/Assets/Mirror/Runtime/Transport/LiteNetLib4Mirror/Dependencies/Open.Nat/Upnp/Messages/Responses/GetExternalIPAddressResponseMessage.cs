@@ -38,8 +38,7 @@ namespace LiteNetLib4Mirror.Open.Nat
         {
             string ip = GetNode().GetXmlElementText("NewExternalIPAddress");
 
-            IPAddress ipAddr;
-            if (IPAddress.TryParse(ip, out ipAddr))
+			if (IPAddress.TryParse(ip, out IPAddress ipAddr))
                 ExternalIPAddress = ipAddr;
         }
 

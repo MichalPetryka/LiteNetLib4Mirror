@@ -44,7 +44,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 		protected XmlNode GetNode()
 		{
-			var nsm = new XmlNamespaceManager(_document.NameTable);
+			XmlNamespaceManager nsm = new XmlNamespaceManager(_document.NameTable);
 			nsm.AddNamespace("responseNs", ServiceType);
 
 			string typeName = _typeName;

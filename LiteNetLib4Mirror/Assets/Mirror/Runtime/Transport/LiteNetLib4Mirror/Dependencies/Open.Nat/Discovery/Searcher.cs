@@ -79,7 +79,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 		{
 			if(DateTime.UtcNow < NextSearch) return;
 
-			foreach (var socket in UdpClients)
+			foreach (UdpClient socket in UdpClients)
 			{
 				try
 				{
@@ -95,14 +95,14 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 		private void Receive(CancellationToken cancelationToken)
 		{
-			foreach (var client in UdpClients.Where(x=>x.Available>0))
+			foreach (UdpClient client in UdpClients.Where(x=>x.Available>0))
 			{
 				if(cancelationToken.IsCancellationRequested) return;
 
-				var localHost = ((IPEndPoint)client.Client.LocalEndPoint).Address;
-				var receivedFrom = new IPEndPoint(IPAddress.None, 0);
-				var buffer = client.Receive(ref receivedFrom);
-				var device = AnalyseReceivedResponse(localHost, buffer, receivedFrom);
+				IPAddress localHost = ((IPEndPoint)client.Client.LocalEndPoint).Address;
+				IPEndPoint receivedFrom = new IPEndPoint(IPAddress.None, 0);
+				byte[] buffer = client.Receive(ref receivedFrom);
+				NatDevice device = AnalyseReceivedResponse(localHost, buffer, receivedFrom);
 
 				if (device != null) RaiseDeviceFound(device);
 			}
@@ -115,7 +115,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 		public void CloseUdpClients()
 		{
-			foreach (var udpClient in UdpClients)
+			foreach (UdpClient udpClient in UdpClients)
 			{
 				udpClient.Close();
 			}
@@ -124,9 +124,8 @@ namespace LiteNetLib4Mirror.Open.Nat
 		private void RaiseDeviceFound(NatDevice device)
 		{
 			_devices.Add(device);
-			var handler = DeviceFound;
-			if(handler!=null)
-				handler(this, new DeviceEventArgs(device));
+			EventHandler<DeviceEventArgs> handler = DeviceFound;
+			handler?.Invoke(this, new DeviceEventArgs(device));
 		}
 	}
 }

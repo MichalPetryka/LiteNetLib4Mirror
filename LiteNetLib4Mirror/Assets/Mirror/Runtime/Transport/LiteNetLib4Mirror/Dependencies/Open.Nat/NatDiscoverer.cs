@@ -51,7 +51,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 #else
 		public async Task<NatDevice> DiscoverDeviceAsync()
 		{
-			var cts = new CancellationTokenSource(3 * 1000);
+			CancellationTokenSource cts = new CancellationTokenSource(3 * 1000);
 			return await DiscoverDeviceAsync(PortMapper.Pmp | PortMapper.Upnp, cts);
 		}
 #endif
@@ -95,8 +95,8 @@ namespace LiteNetLib4Mirror.Open.Nat
 			Guard.IsTrue(portMapper.HasFlag(PortMapper.Upnp) || portMapper.HasFlag(PortMapper.Pmp), "portMapper");
 			Guard.IsNotNull(cancellationTokenSource, "cancellationTokenSource");
 
-			var devices = await DiscoverAsync(portMapper, true, cancellationTokenSource);
-			var device = devices.FirstOrDefault();
+			IEnumerable<NatDevice> devices = await DiscoverAsync(portMapper, true, cancellationTokenSource);
+			NatDevice device = devices.FirstOrDefault();
 			if(device==null)
 			{
 				TraceSource.LogInfo("Device not found. Common reasons:");
@@ -130,7 +130,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 			Guard.IsTrue(portMapper.HasFlag(PortMapper.Upnp) || portMapper.HasFlag(PortMapper.Pmp), "portMapper");
 			Guard.IsNotNull(cancellationTokenSource, "cancellationTokenSource");
 
-			var devices = await DiscoverAsync(portMapper, false, cancellationTokenSource);
+			IEnumerable<NatDevice> devices = await DiscoverAsync(portMapper, false, cancellationTokenSource);
 			return devices.ToArray();
 		}
 #endif
@@ -179,16 +179,16 @@ namespace LiteNetLib4Mirror.Open.Nat
 		private async Task<IEnumerable<NatDevice>> DiscoverAsync(PortMapper portMapper, bool onlyOne, CancellationTokenSource cts)
 		{
 			TraceSource.LogInfo("Start Discovery");
-			var searcherTasks = new List<Task<IEnumerable<NatDevice>>>();
+			List<Task<IEnumerable<NatDevice>>> searcherTasks = new List<Task<IEnumerable<NatDevice>>>();
 			if(portMapper.HasFlag(PortMapper.Upnp))
 			{
-				var upnpSearcher = new UpnpSearcher(new IPAddressesProvider());
+				UpnpSearcher upnpSearcher = new UpnpSearcher(new IPAddressesProvider());
 				upnpSearcher.DeviceFound += (sender, args) => { if (onlyOne) cts.Cancel(); };
 				searcherTasks.Add(upnpSearcher.Search(cts.Token));
 			}
 			if(portMapper.HasFlag(PortMapper.Pmp))
 			{
-				var pmpSearcher = new PmpSearcher(new IPAddressesProvider());
+				PmpSearcher pmpSearcher = new PmpSearcher(new IPAddressesProvider());
 				pmpSearcher.DeviceFound += (sender, args) => { if (onlyOne) cts.Cancel(); };
 				searcherTasks.Add(pmpSearcher.Search(cts.Token));
 			}
@@ -196,12 +196,11 @@ namespace LiteNetLib4Mirror.Open.Nat
 			await Task.WhenAll(searcherTasks);
 			TraceSource.LogInfo("Stop Discovery");
 			
-			var devices = searcherTasks.SelectMany(x => x.Result);
-			foreach (var device in devices)
+			IEnumerable<NatDevice> devices = searcherTasks.SelectMany(x => x.Result);
+			foreach (NatDevice device in devices)
 			{
-				var key = device.ToString();
-				NatDevice nat;
-				if(Devices.TryGetValue(key, out nat))
+				string key = device.ToString();
+				if(Devices.TryGetValue(key, out NatDevice nat))
 				{
 					nat.Touch();
 				}
@@ -222,7 +221,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 		/// </remarks>
 		public static void ReleaseAll()
 		{
-			foreach (var device in Devices.Values)
+			foreach (NatDevice device in Devices.Values)
 			{
 				device.ReleaseAll();
 			}
@@ -230,7 +229,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 		internal static void ReleaseSessionMappings()
 		{
-			foreach (var device in Devices.Values)
+			foreach (NatDevice device in Devices.Values)
 			{
 				device.ReleaseSessionMappings();
 			}
@@ -251,7 +250,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 #else
 			Task.Factory.StartNew(async () =>
 			{
-				foreach (var device in Devices.Values)
+				foreach (NatDevice device in Devices.Values)
 				{
 					await device.RenewMappings();
 				}

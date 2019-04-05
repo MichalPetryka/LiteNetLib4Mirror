@@ -54,7 +54,7 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			if (LiteNetLib4MirrorCore.State == LiteNetLib4MirrorCore.States.Discovery)
 			{
-				LiteNetLib4MirrorUtils.ReusePut(DataWriter, text, ref _lastDiscoveryMessage);
+				LiteNetLib4MirrorUtils.ReusePutDiscovery(DataWriter, text, ref _lastDiscoveryMessage);
 
 				foreach (ushort port in Singleton.ports)
 				{
@@ -73,7 +73,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static void OnDiscoveryResponse(IPEndPoint remoteendpoint, NetPacketReader reader, UnconnectedMessageType messagetype)
 		{
-			if (messagetype == UnconnectedMessageType.BasicMessage)
+			if (messagetype == UnconnectedMessageType.BasicMessage && reader.TryGetString(out string application) && application == Application.productName)
 			{
 				Singleton.onDiscoveryResponse.Invoke(remoteendpoint, LiteNetLib4MirrorUtils.FromBase64(reader.GetString()));
 			}
@@ -82,9 +82,9 @@ namespace Mirror.LiteNetLib4Mirror
 
 		internal static void OnDiscoveryRequest(IPEndPoint remoteendpoint, NetPacketReader reader, UnconnectedMessageType messagetype)
 		{
-			if (messagetype == UnconnectedMessageType.Broadcast && Singleton.ProcessDiscoveryRequest(remoteendpoint, LiteNetLib4MirrorUtils.FromBase64(reader.GetString()), out string response))
+			if (messagetype == UnconnectedMessageType.Broadcast && reader.TryGetString(out string application) && application == Application.productName && Singleton.ProcessDiscoveryRequest(remoteendpoint, LiteNetLib4MirrorUtils.FromBase64(reader.GetString()), out string response))
 			{
-				LiteNetLib4MirrorCore.Host.SendUnconnectedMessage(LiteNetLib4MirrorUtils.ReusePut(DataWriter, response, ref _lastDiscoveryMessage), remoteendpoint);
+				LiteNetLib4MirrorCore.Host.SendUnconnectedMessage(LiteNetLib4MirrorUtils.ReusePutDiscovery(DataWriter, response, ref _lastDiscoveryMessage), remoteendpoint);
 			}
 			reader.Recycle();
 		}

@@ -7,6 +7,9 @@ namespace Mirror.LiteNetLib4Mirror
 {
 	public static class LiteNetLib4MirrorClient
 	{
+		/// <summary>
+		/// Use LiteNetLib4MirrorNetworkManager.DisconnectConnection to send the reason
+		/// </summary>
 		public static string LastDisconnectReason;
 		internal static bool IsConnected()
 		{

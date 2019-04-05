@@ -120,7 +120,7 @@ namespace LiteNetLib.Utils
 
         public sbyte GetSByte()
         {
-            var b = (sbyte)_data[_position];
+            sbyte b = (sbyte)_data[_position];
             _position++;
             return b;
         }
@@ -129,7 +129,7 @@ namespace LiteNetLib.Utils
         {
             ushort size = BitConverter.ToUInt16(_data, _position);
             _position += 2;
-            var arr = new bool[size];
+            bool[] arr = new bool[size];
             for (int i = 0; i < size; i++)
             {
                 arr[i] = GetBool();
@@ -141,7 +141,7 @@ namespace LiteNetLib.Utils
         {
             ushort size = BitConverter.ToUInt16(_data, _position);
             _position += 2;
-            var arr = new ushort[size];
+            ushort[] arr = new ushort[size];
             for (int i = 0; i < size; i++)
             {
                 arr[i] = GetUShort();
@@ -153,7 +153,7 @@ namespace LiteNetLib.Utils
         {
             ushort size = BitConverter.ToUInt16(_data, _position);
             _position += 2;
-            var arr = new short[size];
+            short[] arr = new short[size];
             for (int i = 0; i < size; i++)
             {
                 arr[i] = GetShort();
@@ -165,7 +165,7 @@ namespace LiteNetLib.Utils
         {
             ushort size = BitConverter.ToUInt16(_data, _position);
             _position += 2;
-            var arr = new long[size];
+            long[] arr = new long[size];
             for (int i = 0; i < size; i++)
             {
                 arr[i] = GetLong();
@@ -177,7 +177,7 @@ namespace LiteNetLib.Utils
         {
             ushort size = BitConverter.ToUInt16(_data, _position);
             _position += 2;
-            var arr = new ulong[size];
+            ulong[] arr = new ulong[size];
             for (int i = 0; i < size; i++)
             {
                 arr[i] = GetULong();
@@ -189,7 +189,7 @@ namespace LiteNetLib.Utils
         {
             ushort size = BitConverter.ToUInt16(_data, _position);
             _position += 2;
-            var arr = new int[size];
+            int[] arr = new int[size];
             for (int i = 0; i < size; i++)
             {
                 arr[i] = GetInt();
@@ -201,7 +201,7 @@ namespace LiteNetLib.Utils
         {
             ushort size = BitConverter.ToUInt16(_data, _position);
             _position += 2;
-            var arr = new uint[size];
+            uint[] arr = new uint[size];
             for (int i = 0; i < size; i++)
             {
                 arr[i] = GetUInt();
@@ -213,7 +213,7 @@ namespace LiteNetLib.Utils
         {
             ushort size = BitConverter.ToUInt16(_data, _position);
             _position += 2;
-            var arr = new float[size];
+            float[] arr = new float[size];
             for (int i = 0; i < size; i++)
             {
                 arr[i] = GetFloat();
@@ -225,7 +225,7 @@ namespace LiteNetLib.Utils
         {
             ushort size = BitConverter.ToUInt16(_data, _position);
             _position += 2;
-            var arr = new double[size];
+            double[] arr = new double[size];
             for (int i = 0; i < size; i++)
             {
                 arr[i] = GetDouble();
@@ -237,7 +237,7 @@ namespace LiteNetLib.Utils
         {
             ushort size = BitConverter.ToUInt16(_data, _position);
             _position += 2;
-            var arr = new string[size];
+            string[] arr = new string[size];
             for (int i = 0; i < size; i++)
             {
                 arr[i] = GetString();
@@ -249,7 +249,7 @@ namespace LiteNetLib.Utils
         {
             ushort size = BitConverter.ToUInt16(_data, _position);
             _position += 2;
-            var arr = new string[size];
+            string[] arr = new string[size];
             for (int i = 0; i < size; i++)
             {
                 arr[i] = GetString(maxStringLength);
@@ -626,7 +626,7 @@ namespace LiteNetLib.Utils
         {
             if (AvailableBytes >= 4)
             {
-                var bytesCount = PeekInt();
+                int bytesCount = PeekInt();
                 if (AvailableBytes >= bytesCount + 4)
                 {
                     result = GetString();
@@ -639,8 +639,7 @@ namespace LiteNetLib.Utils
 
         public bool TryGetStringArray(out string[] result)
         {
-            ushort size;
-            if (!TryGetUShort(out size))
+			if (!TryGetUShort(out ushort size))
             {
                 result = null;
                 return false;
@@ -663,7 +662,7 @@ namespace LiteNetLib.Utils
         {
             if (AvailableBytes >= 4)
             {
-                var length = PeekInt();
+                int length = PeekInt();
                 if (AvailableBytes >= length + 4)
                 {
                     result = GetBytesWithLength();

@@ -38,7 +38,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 		/// <returns></returns>
 		public static string Encode(string serviceType, IPAddress address)
 		{
-			var fmtAddress = string.Format(
+			string fmtAddress = string.Format(
 				address.AddressFamily == AddressFamily.InterNetwork ? "{0}" : "[{0}]",
 				address);
 

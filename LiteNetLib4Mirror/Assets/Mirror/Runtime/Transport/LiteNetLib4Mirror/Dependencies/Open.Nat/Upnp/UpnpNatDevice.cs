@@ -33,6 +33,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace LiteNetLib4Mirror.Open.Nat
 {
@@ -67,12 +68,12 @@ namespace LiteNetLib4Mirror.Open.Nat
 		public override async Task<IPAddress> GetExternalIPAsync()
 		{
 			NatDiscoverer.TraceSource.LogInfo("GetExternalIPAsync - Getting external IP address");
-			var message = new GetExternalIPAddressRequestMessage();
-			var responseData = await _soapClient
+			GetExternalIPAddressRequestMessage message = new GetExternalIPAddressRequestMessage();
+			XmlDocument responseData = await _soapClient
 				.InvokeAsync("GetExternalIPAddress", message.ToXml())
 				.TimeoutAfter(TimeSpan.FromSeconds(4));
 
-			var response = new GetExternalIPAddressResponseMessage(responseData, DeviceInfo.ServiceType);
+			GetExternalIPAddressResponseMessage response = new GetExternalIPAddressResponseMessage(responseData, DeviceInfo.ServiceType);
 			return response.ExternalIPAddress;
 		}
 #endif
@@ -148,7 +149,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 			bool retry = false;
 			try
 			{
-				var message = new CreatePortMappingRequestMessage(mapping);
+				CreatePortMappingRequestMessage message = new CreatePortMappingRequestMessage(mapping);
 				await _soapClient
 					.InvokeAsync("AddPortMapping", message.ToXml())
 					.TimeoutAfter(TimeSpan.FromSeconds(4));
@@ -228,7 +229,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 			try
 			{
-				var message = new DeletePortMappingRequestMessage(mapping);
+				DeletePortMappingRequestMessage message = new DeletePortMappingRequestMessage(mapping);
 				await _soapClient
 					.InvokeAsync("DeletePortMapping", message.ToXml())
 					.TimeoutAfter(TimeSpan.FromSeconds(4));
@@ -318,30 +319,29 @@ namespace LiteNetLib4Mirror.Open.Nat
 #else
 		public override async Task<IEnumerable<Mapping>> GetAllMappingsAsync()
 		{
-			var index = 0;
-			var mappings = new List<Mapping>();
+			int index = 0;
+			List<Mapping> mappings = new List<Mapping>();
 
 			NatDiscoverer.TraceSource.LogInfo("GetAllMappingsAsync - Getting all mappings");
 			while (true)
 			{
 				try
 				{
-					var message = new GetGenericPortMappingEntry(index++);
+					GetGenericPortMappingEntry message = new GetGenericPortMappingEntry(index++);
 
-					var responseData = await _soapClient
+					XmlDocument responseData = await _soapClient
 						.InvokeAsync("GetGenericPortMappingEntry", message.ToXml())
 						.TimeoutAfter(TimeSpan.FromSeconds(4));
 
-					var responseMessage = new GetPortMappingEntryResponseMessage(responseData, DeviceInfo.ServiceType, true);
+					GetPortMappingEntryResponseMessage responseMessage = new GetPortMappingEntryResponseMessage(responseData, DeviceInfo.ServiceType, true);
 
-					IPAddress internalClientIp;
-					if(!IPAddress.TryParse(responseMessage.InternalClient, out internalClientIp))
+					if(!IPAddress.TryParse(responseMessage.InternalClient, out IPAddress internalClientIp))
 					{
 						NatDiscoverer.TraceSource.LogWarn("InternalClient is not an IP address. Mapping ignored!");
 						continue;
 					}
 
-					var mapping = new Mapping(responseMessage.NetworkProtocolType
+					Mapping mapping = new Mapping(responseMessage.NetworkProtocolType
 						, internalClientIp
 						, responseMessage.InternalPort
 						, responseMessage.ExternalPort
@@ -423,12 +423,12 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 			try
 			{
-				var message = new GetSpecificPortMappingEntryRequestMessage(networkProtocolType, publicPort);
-				var responseData = await _soapClient
+				GetSpecificPortMappingEntryRequestMessage message = new GetSpecificPortMappingEntryRequestMessage(networkProtocolType, publicPort);
+				XmlDocument responseData = await _soapClient
 					.InvokeAsync("GetSpecificPortMappingEntry", message.ToXml())
 					.TimeoutAfter(TimeSpan.FromSeconds(4));
 
-				var messageResponse = new GetPortMappingEntryResponseMessage(responseData, DeviceInfo.ServiceType, false);
+				GetPortMappingEntryResponseMessage messageResponse = new GetPortMappingEntryResponseMessage(responseData, DeviceInfo.ServiceType, false);
 
 				if (messageResponse.NetworkProtocolType != networkProtocolType)
 					NatDiscoverer.TraceSource.LogWarn("Router responded to a protocol {0} query with a protocol {1} answer, work around applied.", networkProtocolType, messageResponse.NetworkProtocolType);
@@ -461,9 +461,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 		public override string ToString()
 		{
 			//GetExternalIP is blocking and can throw exceptions, can't use it here.
-			return String.Format(
-				"EndPoint: {0}\nControl Url: {1}\nService Type: {2}\nLast Seen: {3}",
-				DeviceInfo.HostEndPoint, DeviceInfo.ServiceControlUri, DeviceInfo.ServiceType, LastSeen);
+			return $"EndPoint: {DeviceInfo.HostEndPoint}\nControl Url: {DeviceInfo.ServiceControlUri}\nService Type: {DeviceInfo.ServiceType}\nLast Seen: {LastSeen}";
 		}
 	}
 }

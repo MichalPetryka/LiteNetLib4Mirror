@@ -108,7 +108,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 			}
 
 			// The nat-pmp search message. Must be sent to GatewayIP:53531
-			var buffer = new[] {PmpConstants.Version, PmpConstants.OperationExternalAddressRequest};
+			byte[] buffer = new[] {PmpConstants.Version, PmpConstants.OperationExternalAddressRequest};
 			foreach (IPEndPoint gatewayEndpoint in _gatewayLists[client])
 			{
 				if (cancelationToken.IsCancellationRequested) return;
@@ -135,7 +135,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 			if (errorcode != 0)
 				NatDiscoverer.TraceSource.LogError("Non zero error: {0}", errorcode);
 
-			var publicIp = new IPAddress(new[] {response[8], response[9], response[10], response[11]});
+			IPAddress publicIp = new IPAddress(new[] {response[8], response[9], response[10], response[11]});
 			//NextSearch = DateTime.Now.AddMinutes(5);
 
 			_timeout = 250;

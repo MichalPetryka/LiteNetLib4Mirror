@@ -21,16 +21,14 @@ namespace LiteNetLib
         public event OnNatIntroductionSuccess NatIntroductionSuccess;
 
         void INatPunchListener.OnNatIntroductionRequest(IPEndPoint localEndPoint, IPEndPoint remoteEndPoint, string token)
-        {
-            if(NatIntroductionRequest != null)
-                NatIntroductionRequest(localEndPoint, remoteEndPoint, token);
-        }
+		{
+			NatIntroductionRequest?.Invoke(localEndPoint, remoteEndPoint, token);
+		}
 
         void INatPunchListener.OnNatIntroductionSuccess(IPEndPoint targetEndPoint, string token)
-        {
-            if (NatIntroductionSuccess != null)
-                NatIntroductionSuccess(targetEndPoint, token);
-        }
+		{
+			NatIntroductionSuccess?.Invoke(targetEndPoint, token);
+		}
     }
 
     /// <summary>
@@ -110,7 +108,7 @@ namespace LiteNetLib
             {
                 while (_successEvents.Count > 0)
                 {
-                    var evt = _successEvents.Dequeue();
+                    SuccessEventData evt = _successEvents.Dequeue();
                     _natPunchListener.OnNatIntroductionSuccess(evt.TargetEndPoint, evt.Token);
                 }
             }
@@ -118,7 +116,7 @@ namespace LiteNetLib
             {
                 while (_requestEvents.Count > 0)
                 {
-                    var evt = _requestEvents.Dequeue();
+                    RequestEventData evt = _requestEvents.Dequeue();
                     _natPunchListener.OnNatIntroductionRequest(evt.LocalEndPoint, evt.RemoteEndPoint, evt.Token);
                 }
             }
@@ -218,7 +216,7 @@ namespace LiteNetLib
 
         internal void ProcessMessage(IPEndPoint senderEndPoint, NetPacket packet)
         {
-            var dr = new NetDataReader(packet.RawData, NetConstants.HeaderSize, packet.Size);
+            NetDataReader dr = new NetDataReader(packet.RawData, NetConstants.HeaderSize, packet.Size);
             switch (packet.Property)
             {
                 case PacketProperty.NatIntroductionRequest:

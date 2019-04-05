@@ -125,9 +125,9 @@ namespace Mirror
             }
         }
 
-        static uint s_NextNetworkId = 1;
-        internal static uint GetNextNetworkId() => s_NextNetworkId++;
-        public static void ResetNextNetworkId() => s_NextNetworkId = 1;
+        static uint nextNetworkId = 1;
+        internal static uint GetNextNetworkId() => nextNetworkId++;
+        public static void ResetNextNetworkId() => nextNetworkId = 1;
 
         public delegate void ClientAuthorityCallback(NetworkConnection conn, NetworkIdentity identity, bool authorityState);
         public static ClientAuthorityCallback clientAuthorityCallback;
@@ -315,6 +315,7 @@ namespace Mirror
         //    if no scene is in build settings then Editor and Build have
         //    different indices too (Editor=0, Build=-1)
         // => ONLY USE THIS FROM POSTPROCESSSCENE!
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public void SetSceneIdSceneHashPartInternal()
         {
             // get deterministic scene hash
@@ -805,16 +806,28 @@ namespace Mirror
 
             bool changed = false;
             bool result = false;
-            HashSet<NetworkConnection> newObservers = new HashSet<NetworkConnection>();
             HashSet<NetworkConnection> oldObservers = new HashSet<NetworkConnection>(observers.Values);
+            HashSet<NetworkConnection> newObservers = new HashSet<NetworkConnection>();
 
+            // call OnRebuildObservers function in components
             foreach (NetworkBehaviour comp in NetworkBehaviours)
             {
                 result |= comp.OnRebuildObservers(newObservers, initialize);
             }
+
+            // if player connection: ensure player always see himself no matter what.
+            // -> fixes https://github.com/vis2k/Mirror/issues/692 where a
+            //    player might teleport out of the ProximityChecker's cast,
+            //    losing the own connection as observer.
+            if (connectionToClient != null && connectionToClient.isReady)
+            {
+                newObservers.Add(connectionToClient);
+            }
+
+            // if no component implemented OnRebuildObservers, then add all
+            // connections.
             if (!result)
             {
-                // none of the behaviours rebuilt our observers, use built-in rebuild method
                 if (initialize)
                 {
                     foreach (NetworkConnection conn in NetworkServer.connections.Values)
@@ -841,7 +854,7 @@ namespace Mirror
 
                 if (!conn.isReady)
                 {
-                    Debug.LogWarning("Observer is not ready for " + gameObject + " " + conn);
+                    if (LogFilter.Debug) Debug.Log("Observer is not ready for " + gameObject + " " + conn);
                     continue;
                 }
 

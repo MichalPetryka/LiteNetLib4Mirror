@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 
 namespace LiteNetLib
@@ -11,7 +11,7 @@ namespace LiteNetLib
 
         public NetPacket GetWithData(PacketProperty property, byte[] data, int start, int length)
         {
-            var packet = GetWithProperty(property, length);
+            NetPacket packet = GetWithProperty(property, length);
             Buffer.BlockCopy(data, start, packet.RawData, NetPacket.GetHeaderSize(property), length);
             return packet;
         }

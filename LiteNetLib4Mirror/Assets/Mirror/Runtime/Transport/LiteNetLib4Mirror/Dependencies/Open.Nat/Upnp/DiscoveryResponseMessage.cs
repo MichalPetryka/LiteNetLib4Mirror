@@ -36,7 +36,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 		public DiscoveryResponseMessage(string message)
 		{
-			var lines = message.Split(new[]{"\r\n"}, StringSplitOptions.RemoveEmptyEntries);
+			string[] lines = message.Split(new[]{"\r\n"}, StringSplitOptions.RemoveEmptyEntries);
 			var headers = from h in lines.Skip(1)
 					let c = h.Split(':')
 					let key = c[0]

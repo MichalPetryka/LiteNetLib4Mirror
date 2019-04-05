@@ -109,24 +109,24 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 			if (messageBody.Length > 0)
 			{
-				using (var stream = await request.GetRequestStreamAsync())
+				using (Stream stream = await request.GetRequestStreamAsync())
 				{
 					await stream.WriteAsync(messageBody, 0, messageBody.Length);
 				}
 			}
 
-			using(var response = await GetWebResponse(request))
+			using(WebResponse response = await GetWebResponse(request))
 			{
-				var stream = response.GetResponseStream();
-				var contentLength = response.ContentLength;
+				Stream stream = response.GetResponseStream();
+				long contentLength = response.ContentLength;
 
-				var reader = new StreamReader(stream, Encoding.UTF8);
+				StreamReader reader = new StreamReader(stream, Encoding.UTF8);
 
-				var responseBody = contentLength != -1
+				string responseBody = contentLength != -1
 									? reader.ReadAsMany((int) contentLength)
 									: reader.ReadToEnd();
 
-				var responseXml = GetXmlDocument(responseBody);
+				XmlDocument responseXml = GetXmlDocument(responseBody);
 
 				response.Close();
 				return responseXml;
@@ -195,7 +195,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 #if !(NET_4_6 || NET_STANDARD_2_0)
 			var request = (HttpWebRequest)WebRequest.Create(_url);
 #else
-			var request = WebRequest.CreateHttp(_url);
+			HttpWebRequest request = WebRequest.CreateHttp(_url);
 #endif
 			request.KeepAlive = false;
 			request.Method = "POST";
@@ -207,13 +207,13 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 		private byte[] BuildMessageBody(string operationName, IEnumerable<KeyValuePair<string, object>> args)
 		{
-			var sb = new StringBuilder();
+			StringBuilder sb = new StringBuilder();
 			sb.AppendLine("<s:Envelope ");
 			sb.AppendLine("   xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" ");
 			sb.AppendLine("   s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">");
 			sb.AppendLine("   <s:Body>");
 			sb.AppendLine("	  <u:" + operationName + " xmlns:u=\"" + _serviceType + "\">");
-			foreach (var a in args)
+			foreach (KeyValuePair<string, object> a in args)
 			{
 				sb.AppendLine("		 <" + a.Key + ">" + Convert.ToString(a.Value, CultureInfo.InvariantCulture) +
 							  "</" + a.Key + ">");
@@ -230,10 +230,10 @@ namespace LiteNetLib4Mirror.Open.Nat
 		private XmlDocument GetXmlDocument(string response)
 		{
 			XmlNode node;
-			var doc = new XmlDocument();
+			XmlDocument doc = new XmlDocument();
 			doc.LoadXml(response);
 
-			var nsm = new XmlNamespaceManager(doc.NameTable);
+			XmlNamespaceManager nsm = new XmlNamespaceManager(doc.NameTable);
 
 			// Error messages should be found under this namespace
 			nsm.AddNamespace("errorNs", "urn:schemas-upnp-org:control-1-0");

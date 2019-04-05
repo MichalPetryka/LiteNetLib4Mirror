@@ -61,12 +61,12 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 		private List<UdpClient> CreateUdpClients()
 		{
-			var clients = new List<UdpClient>();
+			List<UdpClient> clients = new List<UdpClient>();
 			try
 			{
-				var ips = _ipprovider.UnicastAddresses();
+				IEnumerable<IPAddress> ips = _ipprovider.UnicastAddresses();
 
-				foreach (var ipAddress in ips)
+				foreach (IPAddress ipAddress in ips)
 				{
 					try
 					{
@@ -102,16 +102,16 @@ namespace LiteNetLib4Mirror.Open.Nat
 			if (!IsValidClient(client.Client, address)) return;
 			
 			NextSearch = DateTime.UtcNow.AddSeconds(1);
-			var searchEndpoint = new IPEndPoint(address, 1900);
+			IPEndPoint searchEndpoint = new IPEndPoint(address, 1900);
 
-			foreach (var serviceType in ServiceTypes)
+			foreach (string serviceType in ServiceTypes)
 			{
-				var datax = DiscoverDeviceMessage.Encode(serviceType, address);
-				var data = Encoding.ASCII.GetBytes(datax);
+				string datax = DiscoverDeviceMessage.Encode(serviceType, address);
+				byte[] data = Encoding.ASCII.GetBytes(datax);
 
 				// UDP is unreliable, so send 3 requests at a time (per Upnp spec, sec 1.1.2)
 				// Yes, however it works perfectly well with just 1 request.
-				for (var i = 0; i < 3; i++)
+				for (int i = 0; i < 3; i++)
 				{
 					if (cancelationToken.IsCancellationRequested) return;
 					client.Send(data, data.Length, searchEndpoint);
@@ -121,7 +121,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 		private bool IsValidClient(Socket socket, IPAddress address)
 		{
-			var endpoint = (IPEndPoint) socket.LocalEndPoint;
+			IPEndPoint endpoint = (IPEndPoint) socket.LocalEndPoint;
 			if (socket.AddressFamily != address.AddressFamily) return false;
 
 			switch (socket.AddressFamily)
@@ -151,8 +151,8 @@ namespace LiteNetLib4Mirror.Open.Nat
 			try
 			{
 				dataString = Encoding.UTF8.GetString(response);
-				var message = new DiscoveryResponseMessage(dataString);
-				var serviceType = message["ST"];
+				DiscoveryResponseMessage message = new DiscoveryResponseMessage(dataString);
+				string serviceType = message["ST"];
 
 				if (!IsValidControllerService(serviceType))
 				{
@@ -162,8 +162,8 @@ namespace LiteNetLib4Mirror.Open.Nat
 				}
 				NatDiscoverer.TraceSource.LogInfo("UPnP Response: Router advertised a '{0}' service!!!", serviceType);
 
-				var location = message["Location"] ?? message["AL"];
-				var locationUri = new Uri(location);
+				string location = message["Location"] ?? message["AL"];
+				Uri locationUri = new Uri(location);
 				NatDiscoverer.TraceSource.LogInfo("Found device at: {0}", locationUri.ToString());
 
 				if (_devices.ContainsKey(locationUri))
@@ -177,7 +177,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 				// even if three responses are received
 				if (_lastFetched.ContainsKey(endpoint.Address))
 				{
-					var last = _lastFetched[endpoint.Address];
+					DateTime last = _lastFetched[endpoint.Address];
 					if ((DateTime.Now - last) < TimeSpan.FromSeconds(20))
 						return null;
 				}
@@ -185,7 +185,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 				NatDiscoverer.TraceSource.LogInfo("{0}:{1}: Fetching service list", locationUri.Host, locationUri.Port );
 
-				var deviceInfo = BuildUpnpNatDeviceInfo(localAddress, locationUri);
+				UpnpNatDeviceInfo deviceInfo = BuildUpnpNatDeviceInfo(localAddress, locationUri);
 
 				UpnpNatDevice device;
 				lock (_devices)
@@ -215,8 +215,8 @@ namespace LiteNetLib4Mirror.Open.Nat
 		private static bool IsValidControllerService(string serviceType)
 		{
 			var services = from serviceName in ServiceTypes
-						   let serviceUrn = string.Format("urn:schemas-upnp-org:service:{0}", serviceName)
-						   where serviceType.ContainsIgnoreCase(serviceUrn)
+						   let serviceUrn = $"urn:schemas-upnp-org:service:{serviceName}"
+							where serviceType.ContainsIgnoreCase(serviceUrn)
 						   select new {ServiceName = serviceName, ServiceUrn = serviceUrn};
 
 			return services.Any();
@@ -226,7 +226,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 		{
 			NatDiscoverer.TraceSource.LogInfo("Found device at: {0}", location.ToString());
 
-			var hostEndPoint = new IPEndPoint(IPAddress.Parse(location.Host), location.Port);
+			IPEndPoint hostEndPoint = new IPEndPoint(IPAddress.Parse(location.Host), location.Port);
 
 			WebResponse response = null;
 			try
@@ -234,37 +234,35 @@ namespace LiteNetLib4Mirror.Open.Nat
 #if !(NET_4_6 || NET_STANDARD_2_0)
 				var request = WebRequest.Create(location);
 #else
-				var request = WebRequest.CreateHttp(location);
+				HttpWebRequest request = WebRequest.CreateHttp(location);
 #endif
 				request.Headers.Add("ACCEPT-LANGUAGE", "en");
 				request.Method = "GET";
 
 				response = request.GetResponse();
 
-				var httpresponse = response as HttpWebResponse;
-
-				if (httpresponse != null && httpresponse.StatusCode != HttpStatusCode.OK)
+				if (response is HttpWebResponse httpresponse && httpresponse.StatusCode != HttpStatusCode.OK)
 				{
-					var message = string.Format("Couldn't get services list: {0} {1}", httpresponse.StatusCode, httpresponse.StatusDescription);
+					string message = $"Couldn't get services list: {httpresponse.StatusCode} {httpresponse.StatusDescription}";
 					throw new Exception(message);
 				}
 
-				var xmldoc = ReadXmlResponse(response);
+				XmlDocument xmldoc = ReadXmlResponse(response);
 
 				NatDiscoverer.TraceSource.LogInfo("{0}: Parsed services list", hostEndPoint);
 
-				var ns = new XmlNamespaceManager(xmldoc.NameTable);
+				XmlNamespaceManager ns = new XmlNamespaceManager(xmldoc.NameTable);
 				ns.AddNamespace("ns", "urn:schemas-upnp-org:device-1-0");
-				var services = xmldoc.SelectNodes("//ns:service", ns);
+				XmlNodeList services = xmldoc.SelectNodes("//ns:service", ns);
 
 				foreach (XmlNode service in services)
 				{
-					var serviceType = service.GetXmlElementText("serviceType");
+					string serviceType = service.GetXmlElementText("serviceType");
 					if (!IsValidControllerService(serviceType)) continue;
 
 					NatDiscoverer.TraceSource.LogInfo("{0}: Found service: {1}", hostEndPoint, serviceType);
 
-					var serviceControlUrl = service.GetXmlElementText("controlURL");
+					string serviceControlUrl = service.GetXmlElementText("controlURL");
 					NatDiscoverer.TraceSource.LogInfo("{0}: Found upnp service at: {1}", hostEndPoint, serviceControlUrl);
 
 					NatDiscoverer.TraceSource.LogInfo("{0}: Handshake Complete", hostEndPoint);
@@ -277,8 +275,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 			{
 				// Just drop the connection, FIXME: Should i retry?
 				NatDiscoverer.TraceSource.LogError("{0}: Device denied the connection attempt: {1}", hostEndPoint, ex);
-				var inner = ex.InnerException as SocketException;
-				if (inner != null)
+				if (ex.InnerException is SocketException inner)
 				{
 					NatDiscoverer.TraceSource.LogError("{0}: ErrorCode:{1}", hostEndPoint, inner.ErrorCode);
 					NatDiscoverer.TraceSource.LogError("Go to http://msdn.microsoft.com/en-us/library/system.net.sockets.socketerror.aspx");
@@ -288,17 +285,16 @@ namespace LiteNetLib4Mirror.Open.Nat
 			}
 			finally
 			{
-				if (response != null)
-					response.Close();
+				response?.Close();
 			}
 		}
 
 		private static XmlDocument ReadXmlResponse(WebResponse response)
 		{
-			using (var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
+			using (StreamReader reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
 			{
-				var servicesXml = reader.ReadToEnd();
-				var xmldoc = new XmlDocument();
+				string servicesXml = reader.ReadToEnd();
+				XmlDocument xmldoc = new XmlDocument();
 				xmldoc.LoadXml(servicesXml);
 				return xmldoc;
 			}

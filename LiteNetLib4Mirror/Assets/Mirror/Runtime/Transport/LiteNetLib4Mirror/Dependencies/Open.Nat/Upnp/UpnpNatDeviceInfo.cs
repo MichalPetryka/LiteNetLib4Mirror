@@ -39,7 +39,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 			if (Uri.IsWellFormedUriString(serviceControlUrl, UriKind.Absolute))
 			{
-				var u = new Uri(serviceControlUrl);
+				Uri u = new Uri(serviceControlUrl);
 				IPEndPoint old = HostEndPoint;
 				serviceControlUrl = u.PathAndQuery;
 
@@ -48,7 +48,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 				NatDiscoverer.TraceSource.LogInfo("{0}: New control url: {1}", HostEndPoint, serviceControlUrl);
 			}
 
-			var builder = new UriBuilder("http", locationUri.Host, locationUri.Port);
+			UriBuilder builder = new UriBuilder("http", locationUri.Host, locationUri.Port);
 			ServiceControlUri = new Uri(builder.Uri, serviceControlUrl);
 		}
 

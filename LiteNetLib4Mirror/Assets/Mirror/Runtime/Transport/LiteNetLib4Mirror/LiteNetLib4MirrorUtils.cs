@@ -48,6 +48,20 @@ namespace Mirror.LiteNetLib4Mirror
 			return writer;
 		}
 
+		public static NetDataWriter ReusePutDiscovery(NetDataWriter writer, string text, ref string lastText)
+		{
+			if (text != lastText)
+			{
+				string application = Application.productName;
+				lastText = application + text;
+				writer.Reset();
+				writer.Put(application);
+				writer.Put(ToBase64(text));
+			}
+
+			return writer;
+		}
+
 		public static string Concatenate(params string[] array)
 		{
 			StringBuilder sb = new StringBuilder();

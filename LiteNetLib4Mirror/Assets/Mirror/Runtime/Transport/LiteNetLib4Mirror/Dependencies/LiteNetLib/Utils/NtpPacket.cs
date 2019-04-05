@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace LiteNetLib.Utils
 {
@@ -281,7 +281,7 @@ namespace LiteNetLib.Utils
         internal NtpPacket(byte[] bytes)
         {
             if (bytes.Length < 48)
-                throw new ArgumentException("SNTP reply packet must be at least 48 bytes long.", "bytes");
+                throw new ArgumentException("SNTP reply packet must be at least 48 bytes long.", nameof(bytes));
             Bytes = bytes;
         }
 
@@ -293,7 +293,7 @@ namespace LiteNetLib.Utils
         /// <returns></returns>
         public static NtpPacket FromServerResponse(byte[] bytes, DateTime destinationTimestamp)
         {
-            var packet = new NtpPacket(bytes);
+            NtpPacket packet = new NtpPacket(bytes);
             packet.DestinationTimestamp = destinationTimestamp;
             return packet;
         }
@@ -315,7 +315,7 @@ namespace LiteNetLib.Utils
             if (VersionNumber == 0)
                 throw new InvalidOperationException("Protocol version of the reply is not specified.");
             if (Stratum == 0)
-                throw new InvalidOperationException(string.Format("Received Kiss-o'-Death SNTP packet with code 0x{0:x}.", ReferenceId));
+                throw new InvalidOperationException($"Received Kiss-o'-Death SNTP packet with code 0x{ReferenceId:x}.");
             if (LeapIndicator == NtpLeapIndicator.AlarmCondition)
                 throw new InvalidOperationException("SNTP server has unsynchronized clock.");
             CheckTimestamps();
@@ -335,7 +335,7 @@ namespace LiteNetLib.Utils
 
         private DateTime? GetDateTime64(int offset)
         {
-            var field = GetUInt64BE(offset);
+            ulong field = GetUInt64BE(offset);
             if (field == 0)
                 return null;
             return new DateTime(Epoch.Ticks + Convert.ToInt64(field * (1.0 / (1L << 32) * 10000000.0)));

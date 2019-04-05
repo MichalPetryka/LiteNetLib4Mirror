@@ -60,7 +60,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 		}
 
 		internal MappingException(int errorCode, string errorText)
-			: base(string.Format("Error {0}: {1}", errorCode, errorText))
+			: base($"Error {errorCode}: {errorText}")
 		{
 			ErrorCode = errorCode;
 			ErrorText = errorText;
@@ -81,7 +81,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 		[SecurityPermission(SecurityAction.Demand, SerializationFormatter = true)]
 		public override void GetObjectData(SerializationInfo info, StreamingContext context)
 		{
-			if (info == null) throw new ArgumentNullException("info");
+			if (info == null) throw new ArgumentNullException(nameof(info));
 
 			ErrorCode = info.GetInt32("errorCode");
 			ErrorText = info.GetString("errorText");

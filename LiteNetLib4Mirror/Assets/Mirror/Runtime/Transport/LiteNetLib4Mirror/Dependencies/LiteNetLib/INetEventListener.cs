@@ -155,45 +155,38 @@ namespace LiteNetLib
         }
 
         void INetEventListener.OnPeerConnected(NetPeer peer)
-        {
-            if (PeerConnectedEvent != null)
-                PeerConnectedEvent(peer);
-        }
+		{
+			PeerConnectedEvent?.Invoke(peer);
+		}
 
         void INetEventListener.OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo)
-        {
-            if (PeerDisconnectedEvent != null)
-                PeerDisconnectedEvent(peer, disconnectInfo);
-        }
+		{
+			PeerDisconnectedEvent?.Invoke(peer, disconnectInfo);
+		}
 
         void INetEventListener.OnNetworkError(IPEndPoint endPoint, SocketError socketErrorCode)
-        {
-            if (NetworkErrorEvent != null)
-                NetworkErrorEvent(endPoint, socketErrorCode);
-        }
+		{
+			NetworkErrorEvent?.Invoke(endPoint, socketErrorCode);
+		}
 
         void INetEventListener.OnNetworkReceive(NetPeer peer, NetPacketReader reader, DeliveryMethod deliveryMethod)
-        {
-            if (NetworkReceiveEvent != null)
-                NetworkReceiveEvent(peer, reader, deliveryMethod);
-        }
+		{
+			NetworkReceiveEvent?.Invoke(peer, reader, deliveryMethod);
+		}
 
         void INetEventListener.OnNetworkReceiveUnconnected(IPEndPoint remoteEndPoint, NetPacketReader reader, UnconnectedMessageType messageType)
-        {
-            if (NetworkReceiveUnconnectedEvent != null)
-                NetworkReceiveUnconnectedEvent(remoteEndPoint, reader, messageType);
-        }
+		{
+			NetworkReceiveUnconnectedEvent?.Invoke(remoteEndPoint, reader, messageType);
+		}
 
         void INetEventListener.OnNetworkLatencyUpdate(NetPeer peer, int latency)
-        {
-            if (NetworkLatencyUpdateEvent != null)
-                NetworkLatencyUpdateEvent(peer, latency);
-        }
+		{
+			NetworkLatencyUpdateEvent?.Invoke(peer, latency);
+		}
 
         void INetEventListener.OnConnectionRequest(ConnectionRequest request)
-        {
-            if (ConnectionRequestEvent != null)
-                ConnectionRequestEvent(request);
-        }
+		{
+			ConnectionRequestEvent?.Invoke(request);
+		}
     }
 }

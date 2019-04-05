@@ -122,12 +122,12 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 		internal void ReleaseMapping(IEnumerable<Mapping> mappings)
 		{
-			var maparr = mappings.ToArray();
-			var mapCount = maparr.Length;
+			Mapping[] maparr = mappings.ToArray();
+			int mapCount = maparr.Length;
 			NatDiscoverer.TraceSource.LogInfo("{0} ports to close", mapCount);
-			for (var i = 0; i < mapCount; i++)
+			for (int i = 0; i < mapCount; i++)
 			{
-				var mapping = _openedMapping.ElementAt(i);
+				Mapping mapping = _openedMapping.ElementAt(i);
 
 				try
 				{
@@ -148,7 +148,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 		internal void ReleaseSessionMappings()
 		{
-			var mappings = from m in _openedMapping
+			IEnumerable<Mapping> mappings = from m in _openedMapping
 						   where m.LifetimeType == MappingLifetime.Session
 						   select m;
 
@@ -171,10 +171,10 @@ namespace LiteNetLib4Mirror.Open.Nat
 #else
 		internal async Task RenewMappings()
 		{
-			var mappings = _openedMapping.Where(x => x.ShoundRenew());
-			foreach (var mapping in mappings.ToArray())
+			IEnumerable<Mapping> mappings = _openedMapping.Where(x => x.ShoundRenew());
+			foreach (Mapping mapping in mappings.ToArray())
 			{
-				var m = mapping;
+				Mapping m = mapping;
 				await RenewMapping(m);
 			}
 		}
@@ -204,7 +204,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 #else
 		private async Task RenewMapping(Mapping mapping)
 		{
-			var renewMapping = new Mapping(mapping);
+			Mapping renewMapping = new Mapping(mapping);
 			try
 			{
 				renewMapping.Expiration = DateTime.UtcNow.AddSeconds(mapping.Lifetime);

@@ -38,7 +38,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 	{
 		internal static string ReadAsMany(this StreamReader stream, int bytesToRead)
 		{
-			var buffer = new char[bytesToRead];
+			char[] buffer = new char[bytesToRead];
 			stream.ReadBlock(buffer, 0, bytesToRead);
 			return new string(buffer);
 		}
@@ -93,9 +93,9 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 		internal static string ToPrintableXml(this XmlDocument document)
 		{
-			using (var stream = new MemoryStream())
+			using (MemoryStream stream = new MemoryStream())
 			{
-				using (var writer = new XmlTextWriter(stream, Encoding.Unicode))
+				using (XmlTextWriter writer = new XmlTextWriter(stream, Encoding.Unicode))
 				{
 					try
 					{
@@ -110,7 +110,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 						stream.Position = 0;
 
 						// Read MemoryStream contents into a StreamReader.
-						var reader = new StreamReader(stream);
+						StreamReader reader = new StreamReader(stream);
 
 						// Extract the text from the StreamReader.
 						return reader.ReadToEnd();

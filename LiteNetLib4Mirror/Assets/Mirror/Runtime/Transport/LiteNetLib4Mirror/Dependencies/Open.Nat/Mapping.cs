@@ -239,7 +239,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 		{
 			if (ReferenceEquals(null, obj)) return false;
 			if (ReferenceEquals(this, obj)) return true;
-			var m = obj as Mapping;
+			Mapping m = obj as Mapping;
 			if (ReferenceEquals(null, m)) return false;
 			return PublicPort == m.PublicPort && PrivatePort == m.PrivatePort;
 		}
@@ -248,7 +248,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 		{
 			unchecked
 			{
-				var hashCode = PublicPort;
+				int hashCode = PublicPort;
 				hashCode = (hashCode * 397) ^ (PrivateIP != null ? PrivateIP.GetHashCode() : 0);
 				hashCode = (hashCode * 397) ^ PrivatePort;
 				return hashCode;
@@ -263,12 +263,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 		/// </returns>
 		public override string ToString()
 		{
-			return string.Format("{0} {1} --> {2}:{3} ({4})",
-									NetworkProtocolType == NetworkProtocolType.Tcp ? "Tcp" : "Udp",
-									PublicPort,
-									PrivateIP,
-									PrivatePort,
-									Description); 
+			return $"{(NetworkProtocolType == NetworkProtocolType.Tcp ? "Tcp" : "Udp")} {PublicPort} --> {PrivateIP}:{PrivatePort} ({Description})"; 
 		}
 	}
 }

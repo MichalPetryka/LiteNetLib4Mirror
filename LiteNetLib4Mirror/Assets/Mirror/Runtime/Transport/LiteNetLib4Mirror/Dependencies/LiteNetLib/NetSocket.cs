@@ -259,7 +259,7 @@ namespace LiteNetLib
         {
             try
             {
-                var socket = _udpSocketv4;
+                Socket socket = _udpSocketv4;
                 if (remoteEndPoint.AddressFamily == AddressFamily.InterNetworkV6 && IPv6Support)
                     socket = _udpSocketv6;
                 int result = socket.SendTo(data, offset, size, SocketFlags.None, remoteEndPoint);

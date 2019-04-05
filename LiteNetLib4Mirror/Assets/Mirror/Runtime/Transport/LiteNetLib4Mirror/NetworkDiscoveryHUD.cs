@@ -31,7 +31,7 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 
 			GUILayout.BeginArea(new Rect(10 + _managerHud.offsetX + 215 + 10, 40 + _managerHud.offsetY, 215, 9999));
-			if (!NetworkManager.singleton.IsClientConnected() && !NetworkServer.active)
+			if (!NetworkClient.isConnected && !NetworkServer.active)
 			{
 				if (_noDiscovering)
 				{
@@ -66,7 +66,7 @@ namespace Mirror.LiteNetLib4Mirror
 			LiteNetLib4MirrorDiscovery.Singleton.onDiscoveryResponse.AddListener(OnClientDiscoveryResponse);
 			while (!_noDiscovering)
 			{
-				LiteNetLib4MirrorDiscovery.SendDiscoveryRequest(string.Empty);
+				LiteNetLib4MirrorDiscovery.SendDiscoveryRequest("NetworkManagerHUD");
 				yield return new WaitForSeconds(discoveryInterval);
 			}
 

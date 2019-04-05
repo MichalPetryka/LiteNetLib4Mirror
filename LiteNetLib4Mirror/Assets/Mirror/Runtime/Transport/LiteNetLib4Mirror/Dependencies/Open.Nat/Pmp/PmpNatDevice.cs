@@ -162,7 +162,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 #else
 		private async Task<Mapping> InternalCreatePortMapAsync(Mapping mapping, bool create)
 		{
-			var package = new List<byte>();
+			List<byte> package = new List<byte>();
 
 			package.Add(PmpConstants.Version);
 			package.Add(mapping.NetworkProtocolType == NetworkProtocolType.Tcp ? PmpConstants.OperationCodeTcp : PmpConstants.OperationCodeUdp);
@@ -179,7 +179,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 				int attempt = 0;
 				int delay = PmpConstants.RetryDelay;
 
-				using (var udpClient = new UdpClient())
+				using (UdpClient udpClient = new UdpClient())
 				{
 					CreatePortMapListen(udpClient, mapping);
 
@@ -198,12 +198,9 @@ namespace LiteNetLib4Mirror.Open.Nat
 			catch (Exception e)
 			{
 				string type = create ? "create" : "delete";
-				string message = String.Format("Failed to {0} portmap (protocol={1}, private port={2})",
-											   type,
-											   mapping.NetworkProtocolType,
-											   mapping.PrivatePort);
+				string message = $"Failed to {type} portmap (protocol={mapping.NetworkProtocolType}, private port={mapping.PrivatePort})";
 				NatDiscoverer.TraceSource.LogError(message);
-				var pmpException = e as MappingException;
+				MappingException pmpException = e as MappingException;
 				throw new MappingException(message, pmpException);
 			}
 
@@ -213,7 +210,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 		private void CreatePortMapListen(UdpClient udpClient, Mapping mapping)
 		{
-			var endPoint = new IPEndPoint(LocalAddress, PmpConstants.ServerPort);
+			IPEndPoint endPoint = new IPEndPoint(LocalAddress, PmpConstants.ServerPort);
 
 			while (true)
 			{
@@ -225,9 +222,9 @@ namespace LiteNetLib4Mirror.Open.Nat
 				if (data[0] != PmpConstants.Version)
 					continue;
 
-				var opCode = (byte) (data[1] & 127);
+				byte opCode = (byte) (data[1] & 127);
 
-				var protocol = NetworkProtocolType.Tcp;
+				NetworkProtocolType protocol = NetworkProtocolType.Tcp;
 				if (opCode == PmpConstants.OperationCodeUdp)
 					protocol = NetworkProtocolType.Udp;
 
@@ -237,11 +234,11 @@ namespace LiteNetLib4Mirror.Open.Nat
 				short privatePort = IPAddress.NetworkToHostOrder(BitConverter.ToInt16(data, 8));
 				short publicPort = IPAddress.NetworkToHostOrder(BitConverter.ToInt16(data, 10));
 
-				var lifetime = (uint) IPAddress.NetworkToHostOrder(BitConverter.ToInt32(data, 12));
+				uint lifetime = (uint) IPAddress.NetworkToHostOrder(BitConverter.ToInt32(data, 12));
 
 				if (privatePort < 0 || publicPort < 0 || resultCode != PmpConstants.ResultCodeSuccess)
 				{
-					var errors = new[]
+					string[] errors = new[]
 									 {
 										 "Success",
 										 "Unsupported Version",
@@ -268,8 +265,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 		public override string ToString()
 		{
-			return String.Format("Local Address: {0}\nPublic IP: {1}\nLast Seen: {2}",
-								 LocalAddress, _publicAddress, LastSeen);
+			return $"Local Address: {LocalAddress}\nPublic IP: {_publicAddress}\nLast Seen: {LastSeen}";
 		}
 	}
 }
