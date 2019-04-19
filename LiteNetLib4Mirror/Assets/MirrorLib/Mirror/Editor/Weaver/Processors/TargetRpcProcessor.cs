@@ -91,10 +91,10 @@ namespace Mirror.Weaver
 
             // write all the arguments that the user passed to the TargetRpc call
             // (skip first one if first one is NetworkConnection)
-            if (!NetworkBehaviourProcessor.WriteArguments(rpcWorker, md, "TargetRPC", hasNetworkConnection))
+            if (!NetworkBehaviourProcessor.WriteArguments(rpcWorker, md, hasNetworkConnection))
                 return null;
 
-            var rpcName = md.Name;
+            string rpcName = md.Name;
             int index = rpcName.IndexOf(TargetRpcPrefix);
             if (index > -1)
             {

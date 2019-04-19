@@ -7,7 +7,7 @@ using UnityEditor.Compilation;
 
 using Mirror.Weaver;
 
-namespace Mirror
+namespace Mirror.Tests
 {
     [TestFixture]
     public class WeaverTest
@@ -31,7 +31,7 @@ namespace Mirror
             m_weaverWarnings.Add(msg);
         }
 
-        private void BuildAndWeaveTestAssembly(string baseName)
+        void BuildAndWeaveTestAssembly(string baseName)
         {
             WeaverAssembler.OutputFile = baseName + ".dll";
             WeaverAssembler.AddSourceFiles(new string[] { baseName + ".cs" });

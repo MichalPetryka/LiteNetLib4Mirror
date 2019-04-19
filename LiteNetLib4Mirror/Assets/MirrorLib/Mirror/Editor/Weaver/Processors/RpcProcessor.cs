@@ -9,9 +9,9 @@ namespace Mirror.Weaver
 
         public static MethodDefinition ProcessRpcInvoke(TypeDefinition td, MethodDefinition md)
         {
-            MethodDefinition rpc = new MethodDefinition(RpcPrefix + md.Name, MethodAttributes.Family |
-                                                                               MethodAttributes.Static |
-                                                                               MethodAttributes.HideBySig,
+            MethodDefinition rpc = new MethodDefinition(
+                RpcPrefix + md.Name, 
+                MethodAttributes.Family | MethodAttributes.Static | MethodAttributes.HideBySig,
                 Weaver.voidType);
 
             ILProcessor rpcWorker = rpc.Body.GetILProcessor();
@@ -56,17 +56,16 @@ namespace Mirror.Weaver
             }
 
             ILProcessor rpcWorker = rpc.Body.GetILProcessor();
-            Instruction label = rpcWorker.Create(OpCodes.Nop);
 
             NetworkBehaviourProcessor.WriteSetupLocals(rpcWorker);
 
             NetworkBehaviourProcessor.WriteCreateWriter(rpcWorker);
 
             // write all the arguments that the user passed to the Rpc call
-            if (!NetworkBehaviourProcessor.WriteArguments(rpcWorker, md, "RPC", false))
+            if (!NetworkBehaviourProcessor.WriteArguments(rpcWorker, md, false))
                 return null;
 
-            var rpcName = md.Name;
+            string rpcName = md.Name;
             int index = rpcName.IndexOf(RpcPrefix);
             if (index > -1)
             {

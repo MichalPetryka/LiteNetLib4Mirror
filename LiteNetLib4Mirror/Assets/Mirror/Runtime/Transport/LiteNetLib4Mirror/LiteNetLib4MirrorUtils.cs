@@ -21,11 +21,6 @@ namespace Mirror.LiteNetLib4Mirror
 		internal static ushort LastForwardedPort;
 		public static bool UpnpFailed { get; private set; }
 
-		public static void LogException(Exception exception)
-		{
-			Debug.LogException(exception);
-		}
-
 		public static string ToBase64(string text)
 		{
 			return Convert.ToBase64String(Encoding.UTF8.GetBytes(text));
@@ -133,7 +128,7 @@ namespace Mirror.LiteNetLib4Mirror
 				NatDevice device;
 				using (CancellationTokenSource cts = new CancellationTokenSource(milisecondsDelay))
 				{
-					device = await discoverer.DiscoverDeviceAsync(PortMapper.Upnp, cts).ConfigureAwait(false);
+					device = await discoverer.DiscoverDeviceAsync(PortMapper.Upnp | PortMapper.Pmp, cts).ConfigureAwait(false);
 				}
 
 				await device.CreatePortMapAsync(new Mapping(networkProtocolType, port, port, "LiteNetLib4Mirror UPnP")).ConfigureAwait(false);

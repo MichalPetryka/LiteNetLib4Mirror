@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using LiteNetLib;
 using LiteNetLib.Utils;
+using UnityEngine;
 
 namespace Mirror.LiteNetLib4Mirror
 {
@@ -54,7 +55,7 @@ namespace Mirror.LiteNetLib4Mirror
 			catch (Exception ex)
 			{
 				LiteNetLib4MirrorCore.State = LiteNetLib4MirrorCore.States.Idle;
-				LiteNetLib4MirrorUtils.LogException(ex);
+				Debug.LogException(ex);
 			}
 		}
 
@@ -105,7 +106,15 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static void OnConnectionRequest(ConnectionRequest request)
 		{
-			LiteNetLib4MirrorTransport.Singleton.ProcessConnectionRequest(request, request.Data.PeekString());
+			try
+			{
+				LiteNetLib4MirrorTransport.Singleton.ProcessConnectionRequest(request, request.Data.PeekString());
+			}
+			catch (Exception ex)
+			{
+				Debug.LogError("Malformed join request! Rejecting... Error:" + ex.Message + "\n" + ex.StackTrace);
+				request.Reject();
+			}
 		}
 
 		internal static bool Send(int connectionId, DeliveryMethod method, byte[] data, int start, int length, byte channelNumber)

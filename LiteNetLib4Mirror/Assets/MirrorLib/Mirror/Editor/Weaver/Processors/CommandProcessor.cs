@@ -38,7 +38,6 @@ namespace Mirror.Weaver
             }
 
             ILProcessor cmdWorker = cmd.Body.GetILProcessor();
-            Instruction label = cmdWorker.Create(OpCodes.Nop);
 
             NetworkBehaviourProcessor.WriteSetupLocals(cmdWorker);
 
@@ -51,7 +50,7 @@ namespace Mirror.Weaver
             // local client check
             Instruction localClientLabel = cmdWorker.Create(OpCodes.Nop);
             cmdWorker.Append(cmdWorker.Create(OpCodes.Ldarg_0));
-            cmdWorker.Append(cmdWorker.Create(OpCodes.Call, Weaver.UBehaviourIsServer));
+            cmdWorker.Append(cmdWorker.Create(OpCodes.Call, Weaver.getBehaviourIsServer));
             cmdWorker.Append(cmdWorker.Create(OpCodes.Brfalse, localClientLabel));
 
             // call the cmd function directly.
@@ -68,7 +67,7 @@ namespace Mirror.Weaver
             NetworkBehaviourProcessor.WriteCreateWriter(cmdWorker);
 
             // write all the arguments that the user passed to the Cmd call
-            if (!NetworkBehaviourProcessor.WriteArguments(cmdWorker, md, "Command", false))
+            if (!NetworkBehaviourProcessor.WriteArguments(cmdWorker, md, false))
                 return null;
 
             string cmdName = md.Name;

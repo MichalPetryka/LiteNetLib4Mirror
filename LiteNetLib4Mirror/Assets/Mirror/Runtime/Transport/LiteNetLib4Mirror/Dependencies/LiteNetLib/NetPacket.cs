@@ -187,7 +187,7 @@ namespace LiteNetLib
             long connectionId = BitConverter.ToInt64(packet.RawData, 5);
 
             // Read data and create request
-            NetDataReader reader = new NetDataReader(null, 0, 0);
+            var reader = new NetDataReader(null, 0, 0);
             if (packet.Size > HeaderSize)
                 reader.SetSource(packet.RawData, HeaderSize, packet.Size);
 
@@ -197,7 +197,7 @@ namespace LiteNetLib
         public static NetPacket Make(NetDataWriter connectData, long connectId)
         {
             //Make initial packet
-            NetPacket packet = new NetPacket(PacketProperty.ConnectRequest, connectData.Length);
+            var packet = new NetPacket(PacketProperty.ConnectRequest, connectData.Length);
 
             //Add data
             FastBitConverter.GetBytes(packet.RawData, 1, NetConstants.ProtocolId);
@@ -241,7 +241,7 @@ namespace LiteNetLib
 
         public static NetPacket Make(long connectId, byte connectNum, bool reusedPeer)
         {
-            NetPacket packet = new NetPacket(PacketProperty.ConnectAccept, 0);
+            var packet = new NetPacket(PacketProperty.ConnectAccept, 0);
             FastBitConverter.GetBytes(packet.RawData, 1, connectId);
             packet.RawData[9] = connectNum;
             packet.RawData[10] = (byte)(reusedPeer ? 1 : 0);

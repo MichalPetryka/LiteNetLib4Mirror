@@ -30,6 +30,9 @@ namespace Mirror.LiteNetLib4Mirror
 		public bool useUpnP = true;
 		public ushort maxConnections = 20;
 #if !DISABLE_IPV6
+#if UNITY_EDITOR
+		[Rename("IPv6 Enabled")]
+#endif
 		public bool ipv6Enabled = true;
 #endif
 
@@ -177,7 +180,13 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public override bool ClientSend(int channelId, byte[] data)
 		{
-			return LiteNetLib4MirrorClient.Send(channels[channelId], data, 0, data.Length, (byte)channelId);
+			// ReSharper disable once ConvertIfStatementToReturnStatement
+			if (channelId < channels.Length)
+			{
+				return LiteNetLib4MirrorClient.Send(channels[channelId], data, 0, data.Length, (byte)channelId);
+			}
+
+			return LiteNetLib4MirrorClient.Send(channels[0], data, 0, data.Length, 0);
 		}
 
 		public override void ClientDisconnect()
@@ -200,7 +209,12 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public override bool ServerSend(int connectionId, int channelId, byte[] data)
 		{
-			return LiteNetLib4MirrorServer.Send(connectionId, channels[channelId], data, 0, data.Length, (byte)channelId);
+			// ReSharper disable once ConvertIfStatementToReturnStatement
+			if (channelId < channels.Length)
+			{
+				return LiteNetLib4MirrorServer.Send(connectionId, channels[channelId], data, 0, data.Length, (byte)channelId);
+			}
+			return LiteNetLib4MirrorServer.Send(connectionId, channels[0], data, 0, data.Length, 0);
 		}
 
 		public override bool ServerDisconnect(int connectionId)
@@ -237,12 +251,22 @@ namespace Mirror.LiteNetLib4Mirror
 		#region ISegmentTransport
 		public bool ClientSend(int channelId, ArraySegment<byte> data)
 		{
-			return LiteNetLib4MirrorClient.Send(channels[channelId], data.Array, data.Offset, data.Count, (byte)channelId);
+			// ReSharper disable once ConvertIfStatementToReturnStatement
+			if (channelId < channels.Length)
+			{
+				return LiteNetLib4MirrorClient.Send(channels[channelId], data.Array, data.Offset, data.Count, (byte)channelId);
+			}
+			return LiteNetLib4MirrorClient.Send(channels[0], data.Array, data.Offset, data.Count, 0);
 		}
 
 		public bool ServerSend(int connectionId, int channelId, ArraySegment<byte> data)
 		{
-			return LiteNetLib4MirrorServer.Send(connectionId, channels[channelId], data.Array, data.Offset, data.Count, (byte)channelId);
+			// ReSharper disable once ConvertIfStatementToReturnStatement
+			if (channelId < channels.Length)
+			{
+				return LiteNetLib4MirrorServer.Send(connectionId, channels[channelId], data.Array, data.Offset, data.Count, (byte)channelId);
+			}
+			return LiteNetLib4MirrorServer.Send(connectionId, channels[0], data.Array, data.Offset, data.Count, 0);
 		}
 		#endregion
 	}

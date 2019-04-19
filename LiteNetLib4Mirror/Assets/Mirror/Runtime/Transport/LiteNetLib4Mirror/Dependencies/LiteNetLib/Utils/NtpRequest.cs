@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Net;
 using System.Net.Sockets;
 
@@ -92,10 +92,10 @@ namespace LiteNetLib.Utils
         public void Send()
         {
             SocketError errorCode = 0;
-            NtpPacket packet = new NtpPacket();
+            var packet = new NtpPacket();
             packet.ValidateRequest(); // not necessary
             byte[] sendData = packet.Bytes;
-            int sendCount = _socket.SendTo(sendData, 0, sendData.Length, _ntpEndPoint, ref errorCode);
+            var sendCount = _socket.SendTo(sendData, 0, sendData.Length, _ntpEndPoint, ref errorCode);
             if (errorCode != 0 || sendCount != sendData.Length)
             {
                 _onRequestComplete(null);

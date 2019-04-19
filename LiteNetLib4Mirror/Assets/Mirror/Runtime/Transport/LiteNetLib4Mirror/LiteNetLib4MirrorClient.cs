@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using LiteNetLib;
+using UnityEngine;
 
 namespace Mirror.LiteNetLib4Mirror
 {
@@ -42,7 +43,7 @@ namespace Mirror.LiteNetLib4Mirror
 			catch (Exception ex)
 			{
 				LiteNetLib4MirrorCore.State = LiteNetLib4MirrorCore.States.Idle;
-				LiteNetLib4MirrorUtils.LogException(ex);
+				Debug.LogException(ex);
 			}
 		}
 

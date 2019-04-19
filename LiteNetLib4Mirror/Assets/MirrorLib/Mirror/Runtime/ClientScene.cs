@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using UnityEngine;
 using Guid = System.Guid;
@@ -17,6 +18,7 @@ namespace Mirror
         public static bool ready { get; internal set; }
         public static NetworkConnection readyConnection { get; private set; }
 
+        [Obsolete]
         public static Dictionary<Guid, GameObject> prefabs = new Dictionary<Guid, GameObject>();
         // scene id to NetworkIdentity
         public static Dictionary<ulong, NetworkIdentity> spawnableObjects;
@@ -29,15 +31,13 @@ namespace Mirror
         // then the client's player object won't be removed after disconnecting!
         internal static void Shutdown()
         {
-            NetworkIdentity.spawned.Clear();
             ClearSpawners();
             pendingOwnerNetIds.Clear();
             spawnableObjects = null;
             readyConnection = null;
             ready = false;
             isSpawnFinished = false;
-
-            Transport.activeTransport.ClientDisconnect();
+            DestroyAllClientObjects();
         }
 
         // this is called from message handler for Owner message
@@ -89,11 +89,11 @@ namespace Mirror
 
             if (LogFilter.Debug) Debug.Log("ClientScene.AddPlayer() called with connection [" + readyConnection + "]");
 
-            AddPlayerMessage msg = new AddPlayerMessage()
+            AddPlayerMessage message = new AddPlayerMessage()
             {
                 value = extraData
             };
-            readyConnection.Send(msg);
+            readyConnection.Send(message);
             return true;
         }
 
@@ -103,8 +103,7 @@ namespace Mirror
 
             if (readyConnection.playerController != null)
             {
-                RemovePlayerMessage msg = new RemovePlayerMessage();
-                readyConnection.Send(msg);
+                readyConnection.Send(new RemovePlayerMessage());
 
                 Object.Destroy(readyConnection.playerController.gameObject);
 
@@ -177,29 +176,12 @@ namespace Mirror
             return null;
         }
 
-        // spawn handlers and prefabs
-        static bool GetPrefab(Guid assetId, out GameObject prefab)
-        {
-            prefab = null;
-            return assetId != Guid.Empty &&
-                   prefabs.TryGetValue(assetId, out prefab) && prefab != null;
-        }
-
         // this assigns the newAssetId to the prefab. This is for registering dynamically created game objects for already know assetIds.
         public static void RegisterPrefab(GameObject prefab, Guid newAssetId)
         {
-            NetworkIdentity identity = prefab.GetComponent<NetworkIdentity>();
-            if (identity)
-            {
-                identity.assetId = newAssetId;
-
-                if (LogFilter.Debug) Debug.Log("Registering prefab '" + prefab.name + "' as asset:" + identity.assetId);
-                prefabs[identity.assetId] = prefab;
-            }
-            else
-            {
-                Debug.LogError("Could not register '" + prefab.name + "' since it contains no NetworkIdentity component");
-            }
+            RegisterSpawnHandler(newAssetId, 
+                (position, assetId) => Object.Instantiate(prefab),
+                (spawned) => Object.Destroy(spawned));
         }
 
         public static void RegisterPrefab(GameObject prefab)
@@ -207,8 +189,7 @@ namespace Mirror
             NetworkIdentity identity = prefab.GetComponent<NetworkIdentity>();
             if (identity)
             {
-                if (LogFilter.Debug) Debug.Log("Registering prefab '" + prefab.name + "' as asset:" + identity.assetId);
-                prefabs[identity.assetId] = prefab;
+                RegisterPrefab(prefab, identity.assetId);
 
                 NetworkIdentity[] identities = prefab.GetComponentsInChildren<NetworkIdentity>();
                 if (identities.Length > 1)
@@ -238,16 +219,7 @@ namespace Mirror
                 return;
             }
 
-            if (identity.assetId == Guid.Empty)
-            {
-                Debug.LogError("RegisterPrefab game object " + prefab.name + " has no prefab. Use RegisterSpawnHandler() instead?");
-                return;
-            }
-
-            if (LogFilter.Debug) Debug.Log("Registering custom prefab '" + prefab.name + "' as asset:" + identity.assetId + " " + spawnHandler.GetMethodName() + "/" + unspawnHandler.GetMethodName());
-
-            spawnHandlers[identity.assetId] = spawnHandler;
-            unspawnHandlers[identity.assetId] = unspawnHandler;
+            RegisterSpawnHandler(identity.assetId, spawnHandler, unspawnHandler);
         }
 
         public static void UnregisterPrefab(GameObject prefab)
@@ -258,8 +230,7 @@ namespace Mirror
                 Debug.LogError("Could not unregister '" + prefab.name + "' since it contains no NetworkIdentity component");
                 return;
             }
-            spawnHandlers.Remove(identity.assetId);
-            unspawnHandlers.Remove(identity.assetId);
+            UnregisterSpawnHandler(identity.assetId);
         }
 
         public static void RegisterSpawnHandler(Guid assetId, SpawnDelegate spawnHandler, UnSpawnDelegate unspawnHandler)
@@ -270,6 +241,11 @@ namespace Mirror
                 return;
             }
 
+            if (assetId == Guid.Empty)
+            { 
+                Debug.LogError($"Registering invalid asset id {assetId}");
+                return;
+            }
             if (LogFilter.Debug) Debug.Log("RegisterSpawnHandler asset '" + assetId + "' " + spawnHandler.GetMethodName() + "/" + unspawnHandler.GetMethodName());
 
             spawnHandlers[assetId] = spawnHandler;
@@ -284,7 +260,6 @@ namespace Mirror
 
         public static void ClearSpawners()
         {
-            prefabs.Clear();
             spawnHandlers.Clear();
             unspawnHandlers.Clear();
         }
@@ -322,7 +297,7 @@ namespace Mirror
             NetworkIdentity.spawned.Clear();
         }
 
-        [Obsolete("Use NetworkIdentity.spawned[netId] instead.")]
+        [EditorBrowsable(EditorBrowsableState.Never), Obsolete("Use NetworkIdentity.spawned[netId] instead.")]
         public static GameObject FindLocalObject(uint netId)
         {
             if (NetworkIdentity.spawned.TryGetValue(netId, out NetworkIdentity identity))
@@ -368,6 +343,12 @@ namespace Mirror
             }
             if (LogFilter.Debug) Debug.Log("Client spawn handler instantiating [netId:" + msg.netId + " asset ID:" + msg.assetId + " pos:" + msg.position + "]");
 
+            // owner?
+            if (msg.owner)
+            {
+                OnSpawnMessageForOwner(msg.netId);
+            }
+
             if (NetworkIdentity.spawned.TryGetValue(msg.netId, out NetworkIdentity localObject) && localObject != null)
             {
                 // this object already exists (was in the scene), just apply the update to existing object
@@ -376,25 +357,7 @@ namespace Mirror
                 return;
             }
 
-            if (GetPrefab(msg.assetId, out GameObject prefab))
-            {
-                GameObject obj = Object.Instantiate(prefab, msg.position, msg.rotation);
-                if (LogFilter.Debug)
-                {
-                    Debug.Log("Client spawn handler instantiating [netId:" + msg.netId + " asset ID:" + msg.assetId + " pos:" + msg.position + " rotation: " + msg.rotation + "]");
-                }
-
-                localObject = obj.GetComponent<NetworkIdentity>();
-                if (localObject == null)
-                {
-                    Debug.LogError("Client object spawned for " + msg.assetId + " does not have a NetworkIdentity");
-                    return;
-                }
-                localObject.Reset();
-                ApplySpawnPayload(localObject, msg.position, msg.rotation, msg.scale, msg.payload, msg.netId);
-            }
-            // lookup registered factory for type:
-            else if (spawnHandlers.TryGetValue(msg.assetId, out SpawnDelegate handler))
+            if (spawnHandlers.TryGetValue(msg.assetId, out SpawnDelegate handler))
             {
                 GameObject obj = handler(msg.position, msg.assetId);
                 if (obj == null)
@@ -421,6 +384,12 @@ namespace Mirror
         internal static void OnSpawnSceneObject(NetworkConnection conn, SpawnSceneObjectMessage msg)
         {
             if (LogFilter.Debug) Debug.Log("Client spawn scene handler instantiating [netId:" + msg.netId + " sceneId:" + msg.sceneId + " pos:" + msg.position);
+
+            // owner?
+            if (msg.owner)
+            {
+                OnSpawnMessageForOwner(msg.netId);
+            }
 
             if (NetworkIdentity.spawned.TryGetValue(msg.netId, out NetworkIdentity localObject) && localObject != null)
             {
@@ -475,6 +444,7 @@ namespace Mirror
         {
             DestroyObject(msg.netId);
         }
+
         internal static void OnObjectDestroy(NetworkConnection conn, ObjectDestroyMessage msg)
         {
             DestroyObject(msg.netId);
@@ -592,15 +562,15 @@ namespace Mirror
             }
         }
 
-        // OnClientAddedPlayer?
-        internal static void OnOwnerMessage(NetworkConnection conn, OwnerMessage msg)
+        // called for the one object in the spawn message which is the owner!
+        internal static void OnSpawnMessageForOwner(uint netId)
         {
-            if (LogFilter.Debug) Debug.Log("ClientScene.OnOwnerMessage - connectionId=" + readyConnection.connectionId + " netId: " + msg.netId);
+            if (LogFilter.Debug) Debug.Log("ClientScene.OnOwnerMessage - connectionId=" + readyConnection.connectionId + " netId: " + netId);
 
             // is there already an owner that is a different object??
             readyConnection.playerController?.SetNotLocalPlayer();
 
-            if (NetworkIdentity.spawned.TryGetValue(msg.netId, out NetworkIdentity localObject) && localObject != null)
+            if (NetworkIdentity.spawned.TryGetValue(netId, out NetworkIdentity localObject) && localObject != null)
             {
                 // this object already exists
                 localObject.connectionToServer = readyConnection;
@@ -609,7 +579,7 @@ namespace Mirror
             }
             else
             {
-                pendingOwnerNetIds.Add(msg.netId);
+                pendingOwnerNetIds.Add(netId);
             }
         }
 

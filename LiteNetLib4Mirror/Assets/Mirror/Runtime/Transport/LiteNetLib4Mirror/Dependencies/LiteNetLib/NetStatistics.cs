@@ -1,4 +1,4 @@
-namespace LiteNetLib
+﻿namespace LiteNetLib
 {
     public sealed class NetStatistics
     {
@@ -25,7 +25,15 @@ namespace LiteNetLib
 
         public override string ToString()
         {
-            return $"BytesReceived: {BytesReceived}\nPacketsReceived: {PacketsReceived}\nBytesSent: {BytesSent}\nPacketsSent: {PacketsSent}\nPacketLoss: {PacketLoss}\nPacketLossPercent: {PacketLossPercent}\n";
+            return
+                string.Format(
+                    "BytesReceived: {0}\nPacketsReceived: {1}\nBytesSent: {2}\nPacketsSent: {3}\nPacketLoss: {4}\nPacketLossPercent: {5}\n",
+                    BytesReceived,
+                    PacketsReceived,
+                    BytesSent,
+                    PacketsSent,
+                    PacketLoss,
+                    PacketLossPercent);
         }
     }
 }

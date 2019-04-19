@@ -155,38 +155,45 @@ namespace LiteNetLib
         }
 
         void INetEventListener.OnPeerConnected(NetPeer peer)
-		{
-			PeerConnectedEvent?.Invoke(peer);
-		}
+        {
+            if (PeerConnectedEvent != null)
+                PeerConnectedEvent(peer);
+        }
 
         void INetEventListener.OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo)
-		{
-			PeerDisconnectedEvent?.Invoke(peer, disconnectInfo);
-		}
+        {
+            if (PeerDisconnectedEvent != null)
+                PeerDisconnectedEvent(peer, disconnectInfo);
+        }
 
         void INetEventListener.OnNetworkError(IPEndPoint endPoint, SocketError socketErrorCode)
-		{
-			NetworkErrorEvent?.Invoke(endPoint, socketErrorCode);
-		}
+        {
+            if (NetworkErrorEvent != null)
+                NetworkErrorEvent(endPoint, socketErrorCode);
+        }
 
         void INetEventListener.OnNetworkReceive(NetPeer peer, NetPacketReader reader, DeliveryMethod deliveryMethod)
-		{
-			NetworkReceiveEvent?.Invoke(peer, reader, deliveryMethod);
-		}
+        {
+            if (NetworkReceiveEvent != null)
+                NetworkReceiveEvent(peer, reader, deliveryMethod);
+        }
 
         void INetEventListener.OnNetworkReceiveUnconnected(IPEndPoint remoteEndPoint, NetPacketReader reader, UnconnectedMessageType messageType)
-		{
-			NetworkReceiveUnconnectedEvent?.Invoke(remoteEndPoint, reader, messageType);
-		}
+        {
+            if (NetworkReceiveUnconnectedEvent != null)
+                NetworkReceiveUnconnectedEvent(remoteEndPoint, reader, messageType);
+        }
 
         void INetEventListener.OnNetworkLatencyUpdate(NetPeer peer, int latency)
-		{
-			NetworkLatencyUpdateEvent?.Invoke(peer, latency);
-		}
+        {
+            if (NetworkLatencyUpdateEvent != null)
+                NetworkLatencyUpdateEvent(peer, latency);
+        }
 
         void INetEventListener.OnConnectionRequest(ConnectionRequest request)
-		{
-			ConnectionRequestEvent?.Invoke(request);
-		}
+        {
+            if (ConnectionRequestEvent != null)
+                ConnectionRequestEvent(request);
+        }
     }
 }
