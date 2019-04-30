@@ -5,14 +5,14 @@ namespace Mirror.LiteNetLib4Mirror
 {
 	public static class LiteNetLib4MirrorCore
 	{
-		public const string TransportVersion = "1.1.7";
+		public const string TransportVersion = "1.1.8";
 		public static SocketError LastError { get; internal set; }
 		public static SocketError LastDisconnectError { get; internal set; }
 		public static DisconnectReason LastDisconnectReason { get; internal set; }
 		public static NetManager Host { get; internal set; }
 		public static States State { get; internal set; } = States.NonInitialized;
 
-		public enum States
+		public enum States : byte
 		{
 			NonInitialized,
 			Idle,

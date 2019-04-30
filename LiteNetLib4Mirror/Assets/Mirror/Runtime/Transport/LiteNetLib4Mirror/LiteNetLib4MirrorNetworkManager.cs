@@ -144,7 +144,7 @@ namespace Mirror.LiteNetLib4Mirror
 			return StartServer();
 		}
 
-		public void DisconnectConnection(NetworkConnection conn, string message)
+		public void DisconnectConnection(NetworkConnection conn, string message = null)
 		{
 			LiteNetLib4MirrorServer.DisconnectMessage = message;
 			conn.Disconnect();

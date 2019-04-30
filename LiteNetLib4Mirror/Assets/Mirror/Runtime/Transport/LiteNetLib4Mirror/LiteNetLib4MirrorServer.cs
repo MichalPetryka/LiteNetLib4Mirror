@@ -74,11 +74,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static void OnNetworkReceive(NetPeer peer, NetPacketReader reader, DeliveryMethod deliverymethod)
 		{
-#if NONALLOC_RECEIVE
-			LiteNetLib4MirrorTransport.Singleton.OnServerDataReceivedNonAlloc.Invoke(peer.Id + 1, reader.GetRemainingBytesSegment());
-#else
-			LiteNetLib4MirrorTransport.Singleton.OnServerDataReceived.Invoke(peer.Id + 1, reader.GetRemainingBytes());
-#endif
+			LiteNetLib4MirrorTransport.Singleton.OnServerDataReceived.Invoke(peer.Id + 1, reader.GetRemainingBytesSegment());
 			reader.Recycle();
 		}
 

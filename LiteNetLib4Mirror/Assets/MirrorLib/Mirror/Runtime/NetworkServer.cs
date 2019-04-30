@@ -47,7 +47,6 @@ namespace Mirror
                 Transport.activeTransport.OnServerDisconnected.RemoveListener(OnDisconnected);
                 Transport.activeTransport.OnServerConnected.RemoveListener(OnConnected);
                 Transport.activeTransport.OnServerDataReceived.RemoveListener(OnDataReceived);
-                Transport.activeTransport.OnServerDataReceivedNonAlloc.RemoveListener(OnDataReceived);
                 Transport.activeTransport.OnServerError.RemoveListener(OnError);
 
                 initialized = false;
@@ -71,7 +70,6 @@ namespace Mirror
             Transport.activeTransport.OnServerDisconnected.AddListener(OnDisconnected);
             Transport.activeTransport.OnServerConnected.AddListener(OnConnected);
             Transport.activeTransport.OnServerDataReceived.AddListener(OnDataReceived);
-            Transport.activeTransport.OnServerDataReceivedNonAlloc.AddListener(OnDataReceived);
             Transport.activeTransport.OnServerError.AddListener(OnError);
         }
 
@@ -170,7 +168,7 @@ namespace Mirror
         {
             if (LogFilter.Debug) Debug.Log("Server.SendToObservers id:" + msgType);
 
-            if (identity != null)
+            if (identity != null && identity.observers != null)
             {
                 // pack message into byte[] once
                 byte[] bytes = MessagePacker.PackMessage((ushort)msgType, msg);
@@ -192,7 +190,7 @@ namespace Mirror
         {
             if (LogFilter.Debug) Debug.Log("Server.SendToObservers id:" + typeof(T));
 
-            if (identity != null)
+            if (identity != null && identity.observers != null)
             {
                 // pack message into byte[] once
                 byte[] bytes = MessagePacker.Pack(msg);
@@ -244,7 +242,7 @@ namespace Mirror
         {
             if (LogFilter.Debug) Debug.Log("Server.SendToReady msgType:" + msgType);
 
-            if (identity != null)
+            if (identity != null && identity.observers != null)
             {
                 // pack message into byte[] once
                 byte[] bytes = MessagePacker.PackMessage((ushort)msgType, msg);
@@ -267,7 +265,7 @@ namespace Mirror
         {
             if (LogFilter.Debug) Debug.Log("Server.SendToReady msgType:" + typeof(T));
 
-            if (identity != null)
+            if (identity != null && identity.observers != null)
             {
                 // pack message into byte[] once
                 byte[] bytes = MessagePacker.Pack(msg);
@@ -398,18 +396,6 @@ namespace Mirror
         {
             conn.InvokeHandler(new DisconnectMessage());
             if (LogFilter.Debug) Debug.Log("Server lost client:" + conn.connectionId);
-        }
-
-        static void OnDataReceived(int connectionId, byte[] data)
-        {
-            if (connections.TryGetValue(connectionId, out NetworkConnection conn))
-            {
-                conn.TransportReceive(data);
-            }
-            else
-            {
-                Debug.LogError("HandleData Unknown connectionId:" + connectionId);
-            }
         }
 
         static void OnDataReceived(int connectionId, ArraySegment<byte> data)

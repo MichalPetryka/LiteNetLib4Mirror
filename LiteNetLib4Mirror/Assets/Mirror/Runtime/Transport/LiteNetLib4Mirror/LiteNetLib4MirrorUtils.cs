@@ -19,7 +19,13 @@ namespace Mirror.LiteNetLib4Mirror
 	public static class LiteNetLib4MirrorUtils
 	{
 		internal static ushort LastForwardedPort;
+		internal static string ApplicationName;
 		public static bool UpnpFailed { get; private set; }
+
+		static LiteNetLib4MirrorUtils()
+		{
+			ApplicationName = Application.productName;
+		}
 
 		public static string ToBase64(string text)
 		{
@@ -45,12 +51,11 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public static NetDataWriter ReusePutDiscovery(NetDataWriter writer, string text, ref string lastText)
 		{
-			if (text != lastText)
+			if (ApplicationName + text != lastText)
 			{
-				string application = Application.productName;
-				lastText = application + text;
+				lastText = ApplicationName + text;
 				writer.Reset();
-				writer.Put(application);
+				writer.Put(ApplicationName);
 				writer.Put(ToBase64(text));
 			}
 
