@@ -64,8 +64,8 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public static string Concatenate(params string[] array)
 		{
-			StringBuilder sb = new StringBuilder();
-			for (int index = 0; index < array.Length; index++) sb.Append(array[index]);
+			StringBuilder sb = new StringBuilder(array[0]);
+			for (int index = 1; index < array.Length; index++) sb.Append(array[index]);
 
 			return sb.ToString();
 		}
@@ -136,7 +136,7 @@ namespace Mirror.LiteNetLib4Mirror
 					device = await discoverer.DiscoverDeviceAsync(PortMapper.Upnp | PortMapper.Pmp, cts).ConfigureAwait(false);
 				}
 
-				await device.CreatePortMapAsync(new Mapping(networkProtocolType, port, port, "LiteNetLib4Mirror UPnP")).ConfigureAwait(false);
+				await device.CreatePortMapAsync(new Mapping(networkProtocolType, port, port, ApplicationName)).ConfigureAwait(false);
 				LastForwardedPort = port;
 				Debug.Log("Port forwarded successfully!");
 			}

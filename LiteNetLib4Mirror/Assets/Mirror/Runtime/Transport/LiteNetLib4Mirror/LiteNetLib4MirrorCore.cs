@@ -5,7 +5,7 @@ namespace Mirror.LiteNetLib4Mirror
 {
 	public static class LiteNetLib4MirrorCore
 	{
-		public const string TransportVersion = "1.1.8";
+		public const string TransportVersion = "1.1.9";
 		public static SocketError LastError { get; internal set; }
 		public static SocketError LastDisconnectError { get; internal set; }
 		public static DisconnectReason LastDisconnectReason { get; internal set; }
@@ -82,9 +82,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		internal static int GetMaxPacketSize(DeliveryMethod channel)
 		{
-			int mtu;
-			if (Host != null && Host.FirstPeer != null) mtu = Host.FirstPeer.Mtu;
-			else mtu = NetConstants.MaxPacketSize;
+			int mtu = Host != null && Host.FirstPeer != null ? Host.FirstPeer.Mtu : NetConstants.MaxPacketSize;
 			switch (channel)
 			{
 				case DeliveryMethod.ReliableOrdered:
