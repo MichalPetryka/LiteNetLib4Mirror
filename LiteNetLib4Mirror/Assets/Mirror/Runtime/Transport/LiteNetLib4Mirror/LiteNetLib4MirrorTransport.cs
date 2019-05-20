@@ -69,9 +69,9 @@ namespace Mirror.LiteNetLib4Mirror
 		[Tooltip("If client or server doesn't receive any packet from remote peer during this time then connection will be closed (including library internal keepalive packets)")]
 #endif
 		public int disconnectTimeout = 5000;
-		/// <summary>Delay betwen connection attempts</summary>
+		/// <summary>Delay between connection attempts</summary>
 #if UNITY_EDITOR
-		[Tooltip("Delay betwen connection attempts")]
+		[Tooltip("Delay between connection attempts")]
 #endif
 		public int reconnectDelay = 500;
 		/// <summary>Maximum connection attempts before client stops and call disconnect event.</summary>
@@ -80,9 +80,9 @@ namespace Mirror.LiteNetLib4Mirror
 #endif
 		public int maxConnectAttempts = 10;
 
-		/// <summary>Simulate packet loss by dropping random amout of packets. (Works only in DEBUG mode)</summary>
+		/// <summary>Simulate packet loss by dropping random amount of packets. (Works only in DEBUG mode)</summary>
 #if UNITY_EDITOR
-		[Header("Debug connection tests")][Tooltip("Simulate packet loss by dropping random amout of packets. (Works only in DEBUG mode)")]
+		[Header("Debug connection tests")][Tooltip("Simulate packet loss by dropping random amount of packets. (Works only in DEBUG mode)")]
 #endif
 		public bool simulatePacketLoss;
 		/// <summary>Chance of packet loss when simulation enabled. Value in percents.</summary>
@@ -113,7 +113,7 @@ namespace Mirror.LiteNetLib4Mirror
 		public UnityEventIntError onServerSocketError;
 
 		internal static bool Polling;
-		#region Overridable methods       
+		#region Overridable methods
 		protected internal virtual string GenerateCode()
 		{
 			return LiteNetLib4MirrorUtils.ToBase64(LiteNetLib4MirrorUtils.Concatenate(Application.productName, Application.companyName, Application.unityVersion, LiteNetLib4MirrorCore.TransportVersion, Singleton.authCode));

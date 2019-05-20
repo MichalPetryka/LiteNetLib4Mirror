@@ -4,6 +4,8 @@ LiteNetLib4Mirror/[Oo]bj/
 LiteNetLib4Mirror/[Bb]uild/
 LiteNetLib4Mirror/[Bb]uilds/
 LiteNetLib4Mirror/[Ll]ogs/
+LiteNetLib4Mirror/[Aa]ogs/[Pp]lugins/
+LiteNetLib4Mirror/.idea/
 
 # Never ignore Asset meta data
 !LiteNetLib4Mirror/[Aa]ssets/**/*.meta

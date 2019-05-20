@@ -44,7 +44,7 @@ namespace Mirror.LiteNetLib4Mirror
 					LiteNetLib4MirrorUtils.ForwardPort();
 				}
 #if DISABLE_IPV6
-				LiteNetLib4MirrorCore.Host.Start(LiteNetLib4MirrorUtils.Parse(LiteNetLib4MirrorTransport.Singleton.serverIPv4BindAddress), LiteNetLib4MirrorUtils.Parse("::"), LiteNetLib4MirrorTransport.Singleton.port);
+				LiteNetLib4MirrorCore.Host.Start(LiteNetLib4MirrorUtils.Parse(LiteNetLib4MirrorTransport.Singleton.serverIPv4BindAddress), IPAddress.IPv6None, LiteNetLib4MirrorTransport.Singleton.port);
 #else
 				LiteNetLib4MirrorCore.Host.Start(LiteNetLib4MirrorUtils.Parse(LiteNetLib4MirrorTransport.Singleton.serverIPv4BindAddress), LiteNetLib4MirrorUtils.Parse(LiteNetLib4MirrorTransport.Singleton.serverIPv6BindAddress), LiteNetLib4MirrorTransport.Singleton.port);
 #endif

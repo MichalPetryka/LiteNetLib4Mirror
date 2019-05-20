@@ -5,7 +5,7 @@ namespace Mirror.LiteNetLib4Mirror
 {
 	public static class LiteNetLib4MirrorCore
 	{
-		public const string TransportVersion = "1.1.9";
+		public const string TransportVersion = "1.2.0";
 		public static SocketError LastError { get; internal set; }
 		public static SocketError LastDisconnectError { get; internal set; }
 		public static DisconnectReason LastDisconnectReason { get; internal set; }
@@ -91,6 +91,8 @@ namespace Mirror.LiteNetLib4Mirror
 				case DeliveryMethod.ReliableSequenced:
 				case DeliveryMethod.Sequenced:
 					return mtu - NetConstants.ChanneledHeaderSize;
+				case DeliveryMethod.Unreliable:
+					return mtu - NetConstants.HeaderSize;
 				default:
 					return mtu - NetConstants.HeaderSize;
 			}
