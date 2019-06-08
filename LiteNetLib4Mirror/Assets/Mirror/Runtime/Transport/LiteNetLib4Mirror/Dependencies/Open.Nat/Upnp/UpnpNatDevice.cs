@@ -2,7 +2,7 @@
 // Authors:
 //   Alan McGovern alan.mcgovern@gmail.com
 //   Ben Motmans <ben.motmans@gmail.com>
-//   Lucas Ontivero lucasontivero@gmail.com 
+//   Lucas Ontivero lucasontivero@gmail.com
 //
 // Copyright (C) 2006 Alan McGovern
 // Copyright (C) 2007 Ben Motmans
@@ -15,10 +15,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -224,7 +224,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 			Guard.IsNotNull(mapping, "mapping");
 
 			if (mapping.PrivateIP.Equals(IPAddress.None)) mapping.PrivateIP = DeviceInfo.LocalAddress;
-			
+
 			NatDiscoverer.TraceSource.LogInfo("DeletePortMapAsync - Deleteing port mapping {0}", mapping);
 
 			try
@@ -237,7 +237,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 			}
 			catch (MappingException e)
 			{
-				if(e.ErrorCode != UpnpConstants.NoSuchEntryInArray) throw; 
+				if(e.ErrorCode != UpnpConstants.NoSuchEntryInArray) throw;
 			}
 		}
 #endif
@@ -360,7 +360,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 					 || e.ErrorCode == UpnpConstants.ActionFailed)
 					{
 						NatDiscoverer.TraceSource.LogWarn("Router failed with {0}-{1}. No more mappings is assumed.", e.ErrorCode, e.ErrorText);
-						break; 
+						break;
 					}
 					throw;
 				}
@@ -402,7 +402,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 						MappingException e = task.Exception.InnerException as MappingException;
 						if (e != null && e.ErrorCode == UpnpConstants.NoSuchEntryInArray) return null;
 
-						// DD-WRT Linux base router (and others probably) fails with 402-InvalidArgument 
+						// DD-WRT Linux base router (and others probably) fails with 402-InvalidArgument
 						// when no mapping is found in the mappings table
 						if (e != null && e.ErrorCode == UpnpConstants.InvalidArguments)
 						{

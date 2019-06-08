@@ -1,6 +1,6 @@
 //
 // Authors:
-//   Lucas Ontivero lucasontivero@gmail.com 
+//   Lucas Ontivero lucasontivero@gmail.com
 //
 // Copyright (C) 2014 Lucas Ontivero
 //
@@ -11,10 +11,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -40,9 +40,9 @@ namespace LiteNetLib4Mirror.Open.Nat
 			var headers = from h in lines.Skip(1)
 					let c = h.Split(':')
 					let key = c[0]
-					let value = c.Length > 1 
-						? string.Join(":", c.Skip(1).ToArray()) 
-						: string.Empty 
+					let value = c.Length > 1
+						? string.Join(":", c.Skip(1).ToArray())
+						: string.Empty
 					select new {Key = key, Value = value.Trim()};
 			_headers = headers.ToDictionary(x => x.Key.ToUpperInvariant(), x => x.Value);
 		}

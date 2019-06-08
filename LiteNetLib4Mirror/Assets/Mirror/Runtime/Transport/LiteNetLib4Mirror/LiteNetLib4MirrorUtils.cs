@@ -163,20 +163,13 @@ namespace Mirror.LiteNetLib4Mirror
 				}
 
 				ExternalIp = await device.GetExternalIPAsync();
-				if (ExternalIp == null)
-				{
-					await device.CreatePortMapAsync(new Mapping(networkProtocolType, port, port, ApplicationName)).ConfigureAwait(false);
-				}
-				else
-				{
-					await device.CreatePortMapAsync(new Mapping(networkProtocolType, ExternalIp, port, port, 0, ApplicationName)).ConfigureAwait(false);
-				}
+				await device.CreatePortMapAsync(new Mapping(networkProtocolType, ExternalIp ?? IPAddress.None, port, port, 0, ApplicationName)).ConfigureAwait(false);
 				LastForwardedPort = port;
-				Debug.Log("Port " + port + " forwarded successfully!");
+				Debug.Log($"Port {port} forwarded successfully!");
 			}
 			catch (Exception ex)
 			{
-				Debug.LogWarning("UPnP failed!\n" + ex.Message + "\n" + ex.StackTrace);
+				Debug.LogWarning($"UPnP failed!\n{ex.Message}\n{ex.StackTrace}");
 				UpnpFailed = true;
 			}
 		}

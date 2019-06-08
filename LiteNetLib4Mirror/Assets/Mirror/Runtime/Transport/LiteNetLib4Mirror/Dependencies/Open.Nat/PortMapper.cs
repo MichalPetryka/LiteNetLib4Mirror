@@ -3,7 +3,7 @@ using System;
 namespace LiteNetLib4Mirror.Open.Nat
 {
 	/// <summary>
-	/// Protocol that should be used for searching a NAT device. 
+	/// Protocol that should be used for searching a NAT device.
 	/// </summary>
 	[Flags]
 	public enum PortMapper

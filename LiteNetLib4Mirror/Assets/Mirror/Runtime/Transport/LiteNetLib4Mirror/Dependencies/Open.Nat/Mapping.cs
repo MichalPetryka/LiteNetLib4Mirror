@@ -15,10 +15,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -49,11 +49,11 @@ namespace LiteNetLib4Mirror.Open.Nat
 		private DateTime _expiration;
 		private int _lifetime;
 		internal MappingLifetime LifetimeType { get; set; }
-	
+
 
 		/// <summary>
-		/// Gets the mapping's description. It is the value stored in the NewPortMappingDescription parameter. 
-		/// The NewPortMappingDescription parameter is a human readable string that describes the connection. 
+		/// Gets the mapping's description. It is the value stored in the NewPortMappingDescription parameter.
+		/// The NewPortMappingDescription parameter is a human readable string that describes the connection.
 		/// It is used in sorme web interfaces of routers so the user can see which program is using what port.
 		/// </summary>
 		public string Description { get; internal set; }
@@ -66,8 +66,8 @@ namespace LiteNetLib4Mirror.Open.Nat
 		/// </summary>
 		public NetworkProtocolType NetworkProtocolType { get; internal set; }
 		/// <summary>
-		/// The PrivatePort parameter specifies the port on a client machine to which all traffic 
-		/// coming in on <see cref="#PublicPort">PublicPort</see> for the protocol specified by 
+		/// The PrivatePort parameter specifies the port on a client machine to which all traffic
+		/// coming in on <see cref="#PublicPort">PublicPort</see> for the protocol specified by
 		/// <see cref="#Protocol">Protocol</see> should be forwarded to.
 		/// </summary>
 		/// <see cref="NetworkProtocolType">Protocol enum</see>
@@ -79,11 +79,11 @@ namespace LiteNetLib4Mirror.Open.Nat
 		/// <summary>
 		/// Gets the external (visible) port number.
 		/// It is the value stored in the NewExternalPort parameter .
-		/// The NewExternalPort parameter is used to specify the TCP or UDP port on the WAN side of the router which should be forwarded. 
+		/// The NewExternalPort parameter is used to specify the TCP or UDP port on the WAN side of the router which should be forwarded.
 		/// </summary>
 		public int PublicPort { get; internal set; }
 		/// <summary>
-		/// Gets the lifetime. The Lifetime parameter tells the router how long the portmapping should be active. 
+		/// Gets the lifetime. The Lifetime parameter tells the router how long the portmapping should be active.
 		/// Since most programs don't know this in advance, it is often set to 0, which means 'unlimited' or 'permanent'.
 		/// </summary>
 		/// <remarks>
@@ -92,8 +92,8 @@ namespace LiteNetLib4Mirror.Open.Nat
 		/// Since most programs don't know the lifetime in advance, Open.NAT renew all the portmappings (except the permanents) before they expires. So, developers have to close explicitly those portmappings
 		/// they don't want to remain open for the session.
 		/// </remarks>
-		public int Lifetime 
-		{ 
+		public int Lifetime
+		{
 			get { return _lifetime; }
 			internal set
 			{
@@ -115,7 +115,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 						_expiration = DateTime.UtcNow.AddSeconds(_lifetime);
 						break;
 				}
-			} 
+			}
 		}
 
 		/// <summary>
@@ -226,7 +226,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 		public bool IsExpired ()
 		{
 			return LifetimeType != MappingLifetime.Permanent
-				&& LifetimeType != MappingLifetime.ForcedSession 
+				&& LifetimeType != MappingLifetime.ForcedSession
 				&& Expiration < DateTime.UtcNow;
 		}
 
@@ -263,7 +263,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 		/// </returns>
 		public override string ToString()
 		{
-			return $"{(NetworkProtocolType == NetworkProtocolType.Tcp ? "Tcp" : "Udp")} {PublicPort} --> {PrivateIP}:{PrivatePort} ({Description})"; 
+			return $"{(NetworkProtocolType == NetworkProtocolType.Tcp ? "Tcp" : "Udp")} {PublicPort} --> {PrivateIP}:{PrivatePort} ({Description})";
 		}
 	}
 }

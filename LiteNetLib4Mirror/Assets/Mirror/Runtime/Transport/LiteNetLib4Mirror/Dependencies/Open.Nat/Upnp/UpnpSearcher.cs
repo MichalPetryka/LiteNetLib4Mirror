@@ -13,10 +13,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -45,10 +45,10 @@ namespace LiteNetLib4Mirror.Open.Nat
 		private readonly IDictionary<Uri, NatDevice> _devices;
 		private readonly Dictionary<IPAddress, DateTime> _lastFetched;
 		private static readonly string[] ServiceTypes = new[]{
-			"WANIPConnection:2", 
+			"WANIPConnection:2",
 			"WANPPPConnection:2",
-			"WANIPConnection:1", 
-			"WANPPPConnection:1" 
+			"WANIPConnection:1",
+			"WANPPPConnection:1"
 		};
 
 		internal UpnpSearcher(IIPAddressesProvider ipprovider)
@@ -87,7 +87,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 		protected override void Discover(UdpClient client, CancellationToken cancelationToken)
 		{
-			// for testing use: 
+			// for testing use:
 			//    <code>var ip = IPAddress.Broadcast;</code>
 			Discover(client, WellKnownConstants.IPv4MulticastAddress, cancelationToken);
 			if (Socket.OSSupportsIPv6)
@@ -100,7 +100,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 		private void Discover(UdpClient client, IPAddress address, CancellationToken cancelationToken)
 		{
 			if (!IsValidClient(client.Client, address)) return;
-			
+
 			NextSearch = DateTime.UtcNow.AddSeconds(1);
 			IPEndPoint searchEndpoint = new IPEndPoint(address, 1900);
 

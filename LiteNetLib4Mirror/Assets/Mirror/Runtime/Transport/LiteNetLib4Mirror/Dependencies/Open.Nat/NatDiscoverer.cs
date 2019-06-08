@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace LiteNetLib4Mirror.Open.Nat
 {
 	/// <summary>
-	/// 
+	///
 	/// </summary>
 	public class NatDiscoverer
 	{
@@ -37,7 +37,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 		/// <summary>
 		/// Discovers and returns an UPnp or Pmp NAT device; otherwise a <see cref="NatDeviceNotFoundException">NatDeviceNotFoundException</see>
-		/// exception is thrown after 3 seconds. 
+		/// exception is thrown after 3 seconds.
 		/// </summary>
 		/// <returns>A NAT device</returns>
 		/// <exception cref="NatDeviceNotFoundException">when no NAT found before 3 seconds.</exception>
@@ -57,8 +57,8 @@ namespace LiteNetLib4Mirror.Open.Nat
 #endif
 
 		/// <summary>
-		/// Discovers and returns a NAT device for the specified type; otherwise a <see cref="NatDeviceNotFoundException">NatDeviceNotFoundException</see> 
-		/// exception is thrown when it is cancelled. 
+		/// Discovers and returns a NAT device for the specified type; otherwise a <see cref="NatDeviceNotFoundException">NatDeviceNotFoundException</see>
+		/// exception is thrown when it is cancelled.
 		/// </summary>
 		/// <remarks>
 		/// It allows to specify the NAT type to discover as well as the cancellation token in order.
@@ -195,7 +195,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 
 			await Task.WhenAll(searcherTasks);
 			TraceSource.LogInfo("Stop Discovery");
-			
+
 			IEnumerable<NatDevice> devices = searcherTasks.SelectMany(x => x.Result);
 			foreach (NatDevice device in devices)
 			{
@@ -214,7 +214,7 @@ namespace LiteNetLib4Mirror.Open.Nat
 #endif
 
 		/// <summary>
-		/// Release all ports opened by Open.NAT. 
+		/// Release all ports opened by Open.NAT.
 		/// </summary>
 		/// <remarks>
 		/// If ReleaseOnShutdown value is true, it release all the mappings created through the library.
