@@ -12,6 +12,12 @@ namespace Mirror.LiteNetLib4Mirror
 		/// Use LiteNetLib4MirrorNetworkManager.DisconnectConnection to send the reason
 		/// </summary>
 		public static string LastDisconnectReason { get; private set; }
+
+		public static int GetPing()
+		{
+			return LiteNetLib4MirrorCore.Host.FirstPeer.Ping;
+		}
+
 		internal static bool IsConnected()
 		{
 			return LiteNetLib4MirrorCore.State == LiteNetLib4MirrorCore.States.ClientConnected || LiteNetLib4MirrorCore.State == LiteNetLib4MirrorCore.States.ClientConnecting;

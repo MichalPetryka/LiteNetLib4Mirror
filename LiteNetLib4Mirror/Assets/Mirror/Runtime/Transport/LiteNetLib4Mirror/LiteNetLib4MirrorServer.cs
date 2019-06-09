@@ -16,6 +16,11 @@ namespace Mirror.LiteNetLib4Mirror
 		private static readonly NetDataWriter Writer = new NetDataWriter();
 		private static string _lastMessage;
 
+		public static int GetPing(int id)
+		{
+			return Peers[id].Ping;
+		}
+
 		internal static bool IsActive()
 		{
 			return LiteNetLib4MirrorCore.State == LiteNetLib4MirrorCore.States.Server;
