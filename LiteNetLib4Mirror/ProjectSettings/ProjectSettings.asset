@@ -497,7 +497,7 @@ PlayerSettings:
   webGLLinkerTarget: 1
   webGLThreadsSupport: 0
   scriptingDefineSymbols:
-    1: LITENETLIB4MIRROR;MIRROR;MIRROR_1726_OR_NEWER;MIRROR_3_0_OR_NEWER
+    1: LITENETLIB4MIRROR;MIRROR;MIRROR_1726_OR_NEWER;MIRROR_3_0_OR_NEWER;MIRROR_WRITERSEND
   platformArchitecture: {}
   scriptingBackend:
     Standalone: 1

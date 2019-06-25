@@ -36,6 +36,12 @@ namespace Mirror
         public abstract bool ClientConnected();
         public abstract void ClientConnect(string address);
         public abstract bool ClientSend(int channelId, byte[] data);
+        public virtual bool ClientSend(int channelId, NetworkWriter data)
+        {
+            bool result = ClientSend(channelId, data.ToArray());
+            NetworkWriterPool.Recycle(data);
+            return result;
+        }
         public abstract void ClientDisconnect();
 
         // server
@@ -47,6 +53,12 @@ namespace Mirror
         public abstract bool ServerActive();
         public abstract void ServerStart();
         public abstract bool ServerSend(int connectionId, int channelId, byte[] data);
+        public virtual bool ServerSend(int connectionId, int channelId, NetworkWriter data)
+        {
+            bool result = ServerSend(connectionId, channelId, data.ToArray());
+            NetworkWriterPool.Recycle(data);
+            return result;
+        }
         public abstract bool ServerDisconnect(int connectionId);
 
         [EditorBrowsable(EditorBrowsableState.Never), Obsolete("Use ServerGetClientAddress(int connectionId) instead")]
@@ -77,6 +89,8 @@ namespace Mirror
         //            e.g. in uSurvival Transport would apply Cmds before
         //            ShoulderRotation.LateUpdate, resulting in projectile
         //            spawns at the point before shoulder rotation.
-        public void Update() {}
+#if UNITY_EDITOR
+        public void Update() { }
+#endif
     }
 }

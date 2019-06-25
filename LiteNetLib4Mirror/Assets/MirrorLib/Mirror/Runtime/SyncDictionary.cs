@@ -241,14 +241,7 @@ namespace Mirror
             get => objects[i];
             set
             {
-                if (ContainsKey(i))
-                {
-                    AddOperation(Operation.OP_SET, i, value);
-                }
-                else
-                {
-                    AddOperation(Operation.OP_ADD, i, value);
-                }
+                AddOperation(ContainsKey(i) ? Operation.OP_SET : Operation.OP_ADD, i, value);
                 objects[i] = value;
             }
         }

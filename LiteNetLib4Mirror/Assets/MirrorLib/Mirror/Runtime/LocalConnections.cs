@@ -15,7 +15,13 @@ namespace Mirror
 
         internal override bool SendBytes(byte[] bytes, int channelId = Channels.DefaultReliable)
         {
-            NetworkClient.localClientPacketQueue.Enqueue(bytes);
+            NetworkClient.localClientPacketQueue.Enqueue(new BufferHolder(bytes));
+            return true;
+        }
+
+        internal override bool SendWriter(NetworkWriter bytes, int channelId = Channels.DefaultReliable)
+        {
+            NetworkClient.localClientPacketQueue.Enqueue(new BufferHolder(bytes));
             return true;
         }
     }
@@ -41,6 +47,21 @@ namespace Mirror
             // handle the server's message directly
             // TODO any way to do this without NetworkServer.localConnection?
             NetworkServer.localConnection.TransportReceive(new ArraySegment<byte>(bytes));
+            return true;
+        }
+
+        internal override bool SendWriter(NetworkWriter data, int channelId = Channels.DefaultReliable)
+        {
+            ArraySegment<byte> bytes = data.ToArraySegment();
+            if (bytes.Count == 0)
+            {
+                Debug.LogError("LocalConnection.SendBytes cannot send zero bytes");
+                return false;
+            }
+
+            // handle the server's message directly
+            // TODO any way to do this without NetworkServer.localConnection?
+            NetworkServer.localConnection.TransportReceive(bytes);
             return true;
         }
     }

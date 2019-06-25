@@ -45,7 +45,7 @@ namespace Mirror
     }
 
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public abstract class SyncList<T> : IList<T>, SyncObject
+    public abstract class SyncList<T> : IList<T>, IReadOnlyList<T>, SyncObject
     {
         public delegate void SyncListChanged(Operation op, int itemIndex, T item);
 
@@ -338,29 +338,48 @@ namespace Mirror
             get => objects[i];
             set
             {
-                bool changed = false;
-                if (objects[i] == null)
+                if (!EqualityComparer<T>.Default.Equals(objects[i], value))
                 {
-                    if (value == null)
-                        return;
-                    else
-                        changed = true;
-                }
-                else
-                {
-                    changed = !objects[i].Equals(value);
-                }
-
-                objects[i] = value;
-                if (changed)
-                {
+                    objects[i] = value;
                     AddOperation(Operation.OP_SET, i, value);
                 }
             }
         }
 
-        public IEnumerator<T> GetEnumerator() => objects.GetEnumerator();
+        public Enumerator GetEnumerator() => new Enumerator(this);
 
-        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        IEnumerator<T> IEnumerable<T>.GetEnumerator() => new Enumerator(this);
+
+        IEnumerator IEnumerable.GetEnumerator() => new Enumerator(this);
+
+        public struct Enumerator : IEnumerator<T>
+        {
+            private readonly SyncList<T> _list;
+            private int _curIndex;
+            public T Current { get; private set; }
+
+            public Enumerator(SyncList<T> list)
+            {
+                _list = list;
+                _curIndex = -1;
+                Current = default;
+            }
+
+            public bool MoveNext()
+            {
+                if (++_curIndex >= _list.Count)
+                {
+                    return false;
+                }
+                Current = _list[_curIndex];
+                return true;
+            }
+
+            public void Reset() => _curIndex = -1;
+
+            object IEnumerator.Current => Current;
+
+            public void Dispose() {}
+        }
     }
 }

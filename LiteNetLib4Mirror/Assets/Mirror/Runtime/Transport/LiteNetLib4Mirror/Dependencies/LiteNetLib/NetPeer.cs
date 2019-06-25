@@ -41,7 +41,7 @@ namespace LiteNetLib
     /// <summary>
     /// Network peer. Main purpose is sending messages to specific peer.
     /// </summary>
-    public sealed class NetPeer
+    public class NetPeer
     {
         //Ping and RTT
         private int _rtt;
@@ -833,24 +833,18 @@ namespace LiteNetLib
                     break;
 
                 case PacketProperty.Ack:
-                    if (packet.ChannelId > _channelsTotalCount)
-                    {
-                        _packetPool.Recycle(packet);
-                        break;
-                    }
-                    BaseChannel channel = _channels[packet.ChannelId];
-                    if (channel != null)
-                        channel.ProcessPacket(packet);
-                    break;
-
                 case PacketProperty.Channeled:
                     if (packet.ChannelId > _channelsTotalCount)
                     {
                         _packetPool.Recycle(packet);
                         break;
                     }
-                    channel = _channels[packet.ChannelId] ?? CreateChannel(packet.ChannelId);
-                    channel.ProcessPacket(packet);
+                    var channel = _channels[packet.ChannelId] ?? (packet.Property == PacketProperty.Ack ? null : CreateChannel(packet.ChannelId));
+                    if (channel != null)
+                    {
+                        if (!channel.ProcessPacket(packet))
+                            _packetPool.Recycle(packet);
+                    }
                     break;
 
                 //Simple packet without acks

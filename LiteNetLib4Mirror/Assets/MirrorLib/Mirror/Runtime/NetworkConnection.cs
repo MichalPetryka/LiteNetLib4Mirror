@@ -126,8 +126,7 @@ namespace Mirror
         public virtual bool Send<T>(T msg, int channelId = Channels.DefaultReliable) where T: IMessageBase
         {
             // pack message and send
-            byte[] message = MessagePacker.Pack(msg);
-            return SendBytes(message, channelId);
+            return SendWriter(MessagePacker.PackWriter(msg), channelId);
         }
 
         // internal because no one except Mirror should send bytes directly to
@@ -150,6 +149,30 @@ namespace Mirror
             }
 
             return TransportSend(channelId, bytes);
+        }
+
+        internal virtual bool SendWriter(NetworkWriter writer, int channelId = Channels.DefaultReliable)
+        {
+            if (logNetworkMessages)
+            {
+                ArraySegment<byte> data = writer.ToArraySegment();
+                Debug.Log("ConnectionSend con:" + connectionId + " bytes:" + BitConverter.ToString(data.Array, data.Offset, data.Count));
+            }
+
+            if (writer.Position > Transport.activeTransport.GetMaxPacketSize(channelId))
+            {
+                Debug.LogError("NetworkConnection.SendBytes cannot send packet larger than " + Transport.activeTransport.GetMaxPacketSize(channelId) + " bytes");
+                return false;
+            }
+
+            if (writer.Position == 0)
+            {
+                // zero length packets getting into the packet queues are bad.
+                Debug.LogError("NetworkConnection.SendBytes cannot send zero bytes");
+                return false;
+            }
+
+            return TransportSend(channelId, writer);
         }
 
         public override string ToString()
@@ -211,9 +234,10 @@ namespace Mirror
 
         public bool InvokeHandler<T>(T msg) where T : IMessageBase
         {
-            int msgType = MessagePacker.GetId<T>();
-            byte[] data = MessagePacker.Pack(msg);
-            return InvokeHandler(msgType, new NetworkReader(data));
+            NetworkWriter writer = MessagePacker.PackWriter(msg);
+            bool result = InvokeHandler(MessagePacker.GetId<T>(), new NetworkReader(writer.ToArraySegment()));
+            NetworkWriterPool.Recycle(writer);
+            return result;
         }
 
         // handle this message
@@ -246,6 +270,19 @@ namespace Mirror
         }
 
         public virtual bool TransportSend(int channelId, byte[] bytes)
+        {
+            if (Transport.activeTransport.ClientConnected())
+            {
+                return Transport.activeTransport.ClientSend(channelId, bytes);
+            }
+            else if (Transport.activeTransport.ServerActive())
+            {
+                return Transport.activeTransport.ServerSend(connectionId, channelId, bytes);
+            }
+            return false;
+        }
+
+        public virtual bool TransportSend(int channelId, NetworkWriter bytes)
         {
             if (Transport.activeTransport.ClientConnected())
             {

@@ -188,7 +188,26 @@ namespace Mirror.LiteNetLib4Mirror
 
 			return LiteNetLib4MirrorClient.Send(channels[0], data, 0, data.Length, 0);
 		}
+#if MIRROR_WRITERSEND
+		public override bool ClientSend(int channelId, NetworkWriter data)
+		{
+			try
+			{
+				ArraySegment<byte> bytes = data.ToArraySegment();
+				// ReSharper disable once ConvertIfStatementToReturnStatement
+				if (channelId < channels.Length)
+				{
+					return LiteNetLib4MirrorClient.Send(channels[channelId], bytes.Array, bytes.Offset, bytes.Count, (byte)channelId);
+				}
 
+				return LiteNetLib4MirrorClient.Send(channels[0], bytes.Array, bytes.Offset, bytes.Count, 0);
+			}
+			finally
+			{
+				NetworkWriterPool.Recycle(data);
+			}
+		}
+#endif
 		public override void ClientDisconnect()
 		{
 			if (!LiteNetLib4MirrorServer.IsActive())
@@ -216,7 +235,25 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 			return LiteNetLib4MirrorServer.Send(connectionId, channels[0], data, 0, data.Length, 0);
 		}
-
+#if MIRROR_WRITERSEND
+		public override bool ServerSend(int connectionId, int channelId, NetworkWriter data)
+		{
+			try
+			{
+				ArraySegment<byte> bytes = data.ToArraySegment();
+				// ReSharper disable once ConvertIfStatementToReturnStatement
+				if (channelId < channels.Length)
+				{
+					return LiteNetLib4MirrorServer.Send(connectionId, channels[channelId], bytes.Array, bytes.Offset, bytes.Count, (byte)channelId);
+				}
+				return LiteNetLib4MirrorServer.Send(connectionId, channels[0], bytes.Array, bytes.Offset, bytes.Count, 0);
+			}
+			finally
+			{
+				NetworkWriterPool.Recycle(data);
+			}
+		}
+#endif
 		public override bool ServerDisconnect(int connectionId)
 		{
 			return connectionId == 0 || LiteNetLib4MirrorServer.Disconnect(connectionId);

@@ -161,8 +161,8 @@ namespace Mirror.Tests
                 {
                     if (cm.type == CompilerMessageType.Warning)
                     {
-                    //Debug.LogWarningFormat("{0}:{1} -- {2}", cm.file, cm.line, cm.message);
-                }
+                        //Debug.LogWarningFormat("{0}:{1} -- {2}", cm.file, cm.line, cm.message);
+                    }
                     else if (cm.type == CompilerMessageType.Error)
                     {
                         Debug.LogErrorFormat("{0}:{1} -- {2}", cm.file, cm.line, cm.message);

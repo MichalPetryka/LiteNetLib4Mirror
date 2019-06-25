@@ -193,12 +193,13 @@ namespace Mirror
             if (identity != null && identity.observers != null)
             {
                 // pack message into byte[] once
-                byte[] bytes = MessagePacker.Pack(msg);
+                NetworkWriter bytes = MessagePacker.PackWriter(msg);
+                bytes.recycleCount = (ushort)identity.observers.Count;
 
                 bool result = true;
                 foreach (KeyValuePair<int, NetworkConnection> kvp in identity.observers)
                 {
-                    result &= kvp.Value.SendBytes(bytes);
+                    result &= kvp.Value.SendWriter(bytes);
                 }
                 return result;
             }
@@ -227,12 +228,13 @@ namespace Mirror
             if (LogFilter.Debug) Debug.Log("Server.SendToAll id:" + typeof(T));
 
             // pack message into byte[] once
-            byte[] bytes = MessagePacker.Pack(msg);
+            NetworkWriter bytes = MessagePacker.PackWriter(msg);
+            bytes.recycleCount = (ushort)connections.Count;
 
             bool result = true;
             foreach (KeyValuePair<int, NetworkConnection> kvp in connections)
             {
-                result &= kvp.Value.SendBytes(bytes, channelId);
+                result &= kvp.Value.SendWriter(bytes, channelId);
             }
             return result;
         }
@@ -268,16 +270,19 @@ namespace Mirror
             if (identity != null && identity.observers != null)
             {
                 // pack message into byte[] once
-                byte[] bytes = MessagePacker.Pack(msg);
+                NetworkWriter bytes = MessagePacker.PackWriter(msg);
+                bytes.recycleCount = 1;
 
                 bool result = true;
                 foreach (KeyValuePair<int, NetworkConnection> kvp in identity.observers)
                 {
                     if (kvp.Value.isReady)
                     {
-                        result &= kvp.Value.SendBytes(bytes, channelId);
+                        bytes.recycleCount++;
+                        result &= kvp.Value.SendWriter(bytes, channelId);
                     }
                 }
+                NetworkWriterPool.Recycle(bytes);
                 return result;
             }
             return false;
@@ -836,6 +841,14 @@ namespace Mirror
 
             if (LogFilter.Debug) Debug.Log("Server SendSpawnMessage: name=" + identity.name + " sceneId=" + identity.sceneId.ToString("X") + " netid=" + identity.netId); // for easier debugging
 
+            // serialize all components with initialState = true
+            // (can be null if has none)
+            NetworkWriter serialized = identity.OnSerializeAllSafely(true);
+
+            // convert to ArraySegment to avoid reader allocations
+            // (need to handle null case too)
+            ArraySegment<byte> segment = serialized != null ? serialized.ToArraySegment() : default;
+
             // 'identity' is a prefab that should be spawned
             if (identity.sceneId == 0)
             {
@@ -848,9 +861,7 @@ namespace Mirror
                     position = identity.transform.localPosition,
                     rotation = identity.transform.localRotation,
                     scale = identity.transform.localScale,
-
-                    // serialize all components with initialState = true
-                    payload = identity.OnSerializeAllSafely(true)
+                    payload = segment
                 };
 
                 // conn is != null when spawning it for a client
@@ -876,9 +887,7 @@ namespace Mirror
                     position = identity.transform.localPosition,
                     rotation = identity.transform.localRotation,
                     scale = identity.transform.localScale,
-
-                    // include synch data
-                    payload = identity.OnSerializeAllSafely(true)
+                    payload = segment
                 };
 
                 // conn is != null when spawning it for a client
@@ -891,6 +900,11 @@ namespace Mirror
                 {
                     SendToReady(identity, msg);
                 }
+            }
+
+            if (serialized != null)
+            {
+                NetworkWriterPool.Recycle(serialized);
             }
         }
 

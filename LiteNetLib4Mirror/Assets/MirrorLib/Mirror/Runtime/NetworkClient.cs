@@ -42,7 +42,7 @@ namespace Mirror
         // local client in host mode might call Cmds/Rpcs during Update, but we
         // want to apply them in LateUpdate like all other Transport messages
         // to avoid race conditions. keep packets in Queue until LateUpdate.
-        internal static Queue<byte[]> localClientPacketQueue = new Queue<byte[]>();
+        internal static Queue<BufferHolder> localClientPacketQueue = new Queue<BufferHolder>();
 
         // connect remote
         public static void Connect(string address)
@@ -78,7 +78,7 @@ namespace Mirror
             ULocalConnectionToClient connectionToClient = new ULocalConnectionToClient();
             NetworkServer.SetLocalConnection(connectionToClient);
 
-            localClientPacketQueue.Enqueue(MessagePacker.Pack(new ConnectMessage()));
+            localClientPacketQueue.Enqueue(new BufferHolder(MessagePacker.PackWriter(new ConnectMessage())));
         }
 
         // Called by the server to set the LocalClient's LocalPlayer object during NetworkServer.AddPlayer()
@@ -154,7 +154,7 @@ namespace Mirror
             {
                 if (isConnected)
                 {
-                    localClientPacketQueue.Enqueue(MessagePacker.Pack(new DisconnectMessage()));
+                    localClientPacketQueue.Enqueue(new BufferHolder(MessagePacker.PackWriter(new DisconnectMessage())));
                 }
                 NetworkServer.RemoveLocalConnection();
             }
@@ -218,8 +218,17 @@ namespace Mirror
                 // process internal messages so they are applied at the correct time
                 while (localClientPacketQueue.Count > 0)
                 {
-                    byte[] packet = localClientPacketQueue.Dequeue();
-                    OnDataReceived(new ArraySegment<byte>(packet));
+                    BufferHolder packet = localClientPacketQueue.Dequeue();
+                    if (packet.writer)
+                    {
+                        NetworkWriter writer = (NetworkWriter)packet.data;
+                        OnDataReceived(writer.ToArraySegment());
+                        NetworkWriterPool.Recycle(writer);
+                    }
+                    else
+                    {
+                        OnDataReceived(new ArraySegment<byte>((byte[])packet.data));
+                    }
                 }
             }
             else

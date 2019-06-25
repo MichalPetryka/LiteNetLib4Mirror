@@ -140,34 +140,95 @@ namespace Mirror
     #endregion
 
     #region Public System Messages
-    public class ErrorMessage : ByteMessage {}
+    public struct ErrorMessage : IMessageBase
+    {
+        public byte value;
 
-    public class ReadyMessage : EmptyMessage {}
+        public ErrorMessage(byte v)
+        {
+            value = v;
+        }
 
-    public class NotReadyMessage : EmptyMessage {}
+        public void Deserialize(NetworkReader reader)
+        {
+            value = reader.ReadByte();
+        }
 
-    public class AddPlayerMessage : BytesMessage {}
+        public void Serialize(NetworkWriter writer)
+        {
+            writer.Write(value);
+        }
+    }
 
-    public class RemovePlayerMessage : EmptyMessage {}
+    public struct AddPlayerMessage : IMessageBase
+    {
+        public byte[] value;
 
-    public class DisconnectMessage : EmptyMessage {}
+        public AddPlayerMessage(byte[] v)
+        {
+            value = v;
+        }
 
-    public class ConnectMessage : EmptyMessage {}
+        public void Deserialize(NetworkReader reader)
+        {
+            value = reader.ReadBytesAndSize();
+        }
 
-    public class SceneMessage : MessageBase
+        public void Serialize(NetworkWriter writer)
+        {
+            writer.WriteBytesAndSize(value);
+        }
+    }
+
+    public readonly struct ReadyMessage : IMessageBase
+    {
+        public void Deserialize(NetworkReader reader) { }
+
+        public void Serialize(NetworkWriter writer) { }
+    }
+
+    public readonly struct NotReadyMessage : IMessageBase
+    {
+        public void Deserialize(NetworkReader reader) { }
+
+        public void Serialize(NetworkWriter writer) { }
+    }
+
+    public readonly struct RemovePlayerMessage : IMessageBase
+    {
+        public void Deserialize(NetworkReader reader) { }
+
+        public void Serialize(NetworkWriter writer) { }
+    }
+
+    public readonly struct DisconnectMessage : IMessageBase
+    {
+        public void Deserialize(NetworkReader reader) { }
+
+        public void Serialize(NetworkWriter writer) { }
+    }
+
+    public readonly struct ConnectMessage : IMessageBase
+    {
+        public void Deserialize(NetworkReader reader) { }
+
+        public void Serialize(NetworkWriter writer) { }
+    }
+
+    public struct SceneMessage : IMessageBase
     {
         public string sceneName;
         public LoadSceneMode sceneMode; // Single = 0, Additive = 1
         public LocalPhysicsMode physicsMode; // None = 0, Physics3D = 1, Physics2D = 2
 
-        public override void Deserialize(NetworkReader reader)
+        public void Deserialize(NetworkReader reader)
         {
             sceneName = reader.ReadString();
             sceneMode = (LoadSceneMode)reader.ReadByte();
             physicsMode = (LocalPhysicsMode)reader.ReadByte();
         }
 
-        public override void Serialize(NetworkWriter writer)
+        public void Serialize(NetworkWriter writer)
         {
             writer.Write(sceneName);
             writer.Write((byte)sceneMode);
@@ -178,39 +239,113 @@ namespace Mirror
 
     #region System Messages requried for code gen path
     // remote calls like Rpc/Cmd/SyncEvent all use the same message type
-    class RemoteCallMessage : MessageBase
+    struct RemoteCallMessage : IMessageBase
     {
         public uint netId;
         public int componentIndex;
         public int functionHash;
-        public byte[] payload; // the parameters for the Cmd function
+        // the parameters for the Cmd function
+        // -> ArraySegment to avoid unnecessary allocations
+        public ArraySegment<byte> payload;
 
-        public override void Deserialize(NetworkReader reader)
+        public void Deserialize(NetworkReader reader)
         {
             netId = reader.ReadPackedUInt32();
             componentIndex = (int)reader.ReadPackedUInt32();
             functionHash = reader.ReadInt32(); // hash is always 4 full bytes, WritePackedInt would send 1 extra byte here
-            payload = reader.ReadBytesAndSize();
+            payload = reader.ReadBytesAndSizeSegment();
         }
 
-        public override void Serialize(NetworkWriter writer)
+        public void Serialize(NetworkWriter writer)
         {
             writer.WritePackedUInt32(netId);
             writer.WritePackedUInt32((uint)componentIndex);
             writer.Write(functionHash);
-            writer.WriteBytesAndSize(payload);
+            writer.WriteBytesAndSizeSegment(payload);
         }
     }
 
-    class CommandMessage : RemoteCallMessage {}
+    struct CommandMessage : IMessageBase
+    {
+        public uint netId;
+        public int componentIndex;
+        public int functionHash;
+        // the parameters for the Cmd function
+        // -> ArraySegment to avoid unnecessary allocations
+        public ArraySegment<byte> payload;
 
-    class RpcMessage : RemoteCallMessage {}
+        public void Deserialize(NetworkReader reader)
+        {
+            netId = reader.ReadPackedUInt32();
+            componentIndex = (int)reader.ReadPackedUInt32();
+            functionHash = reader.ReadInt32(); // hash is always 4 full bytes, WritePackedInt would send 1 extra byte here
+            payload = reader.ReadBytesAndSizeSegment();
+        }
 
-    class SyncEventMessage : RemoteCallMessage {}
+        public void Serialize(NetworkWriter writer)
+        {
+            writer.WritePackedUInt32(netId);
+            writer.WritePackedUInt32((uint)componentIndex);
+            writer.Write(functionHash);
+            writer.WriteBytesAndSizeSegment(payload);
+        }
+    }
+
+    struct RpcMessage : IMessageBase
+    {
+        public uint netId;
+        public int componentIndex;
+        public int functionHash;
+        // the parameters for the Cmd function
+        // -> ArraySegment to avoid unnecessary allocations
+        public ArraySegment<byte> payload;
+
+        public void Deserialize(NetworkReader reader)
+        {
+            netId = reader.ReadPackedUInt32();
+            componentIndex = (int)reader.ReadPackedUInt32();
+            functionHash = reader.ReadInt32(); // hash is always 4 full bytes, WritePackedInt would send 1 extra byte here
+            payload = reader.ReadBytesAndSizeSegment();
+        }
+
+        public void Serialize(NetworkWriter writer)
+        {
+            writer.WritePackedUInt32(netId);
+            writer.WritePackedUInt32((uint)componentIndex);
+            writer.Write(functionHash);
+            writer.WriteBytesAndSizeSegment(payload);
+        }
+    }
+
+    struct SyncEventMessage : IMessageBase
+    {
+        public uint netId;
+        public int componentIndex;
+        public int functionHash;
+        // the parameters for the Cmd function
+        // -> ArraySegment to avoid unnecessary allocations
+        public ArraySegment<byte> payload;
+
+        public void Deserialize(NetworkReader reader)
+        {
+            netId = reader.ReadPackedUInt32();
+            componentIndex = (int)reader.ReadPackedUInt32();
+            functionHash = reader.ReadInt32(); // hash is always 4 full bytes, WritePackedInt would send 1 extra byte here
+            payload = reader.ReadBytesAndSizeSegment();
+        }
+
+        public void Serialize(NetworkWriter writer)
+        {
+            writer.WritePackedUInt32(netId);
+            writer.WritePackedUInt32((uint)componentIndex);
+            writer.Write(functionHash);
+            writer.WriteBytesAndSizeSegment(payload);
+        }
+    }
     #endregion
 
     #region Internal System Messages
-    class SpawnPrefabMessage : MessageBase
+    struct SpawnPrefabMessage : IMessageBase
     {
         public uint netId;
         public bool owner;
@@ -218,9 +353,11 @@ namespace Mirror
         public Vector3 position;
         public Quaternion rotation;
         public Vector3 scale;
-        public byte[] payload;
+        // the serialized component data
+        // -> ArraySegment to avoid unnecessary allocations
+        public ArraySegment<byte> payload;
 
-        public override void Deserialize(NetworkReader reader)
+        public void Deserialize(NetworkReader reader)
         {
             netId = reader.ReadPackedUInt32();
             owner = reader.ReadBoolean();
@@ -228,10 +365,10 @@ namespace Mirror
             position = reader.ReadVector3();
             rotation = reader.ReadQuaternion();
             scale = reader.ReadVector3();
-            payload = reader.ReadBytesAndSize();
+            payload = reader.ReadBytesAndSizeSegment();
         }
 
-        public override void Serialize(NetworkWriter writer)
+        public void Serialize(NetworkWriter writer)
         {
             writer.WritePackedUInt32(netId);
             writer.Write(owner);
@@ -239,11 +376,11 @@ namespace Mirror
             writer.Write(position);
             writer.Write(rotation);
             writer.Write(scale);
-            writer.WriteBytesAndSize(payload);
+            writer.WriteBytesAndSizeSegment(payload);
         }
     }
 
-    class SpawnSceneObjectMessage : MessageBase
+    struct SpawnSceneObjectMessage : IMessageBase
     {
         public uint netId;
         public bool owner;
@@ -251,9 +388,11 @@ namespace Mirror
         public Vector3 position;
         public Quaternion rotation;
         public Vector3 scale;
-        public byte[] payload;
+        // the serialized component data
+        // -> ArraySegment to avoid unnecessary allocations
+        public ArraySegment<byte> payload;
 
-        public override void Deserialize(NetworkReader reader)
+        public void Deserialize(NetworkReader reader)
         {
             netId = reader.ReadPackedUInt32();
             owner = reader.ReadBoolean();
@@ -261,10 +400,10 @@ namespace Mirror
             position = reader.ReadVector3();
             rotation = reader.ReadQuaternion();
             scale = reader.ReadVector3();
-            payload = reader.ReadBytesAndSize();
+            payload = reader.ReadBytesAndSizeSegment();
         }
 
-        public override void Serialize(NetworkWriter writer)
+        public void Serialize(NetworkWriter writer)
         {
             writer.WritePackedUInt32(netId);
             writer.Write(owner);
@@ -272,103 +411,128 @@ namespace Mirror
             writer.Write(position);
             writer.Write(rotation);
             writer.Write(scale);
-            writer.WriteBytesAndSize(payload);
+            writer.WriteBytesAndSizeSegment(payload);
         }
     }
 
-    class ObjectSpawnStartedMessage : EmptyMessage {}
+    readonly struct ObjectSpawnStartedMessage : IMessageBase
+    {
+        public void Deserialize(NetworkReader reader) { }
 
-    class ObjectSpawnFinishedMessage : EmptyMessage {}
+        public void Serialize(NetworkWriter writer) { }
+    }
 
-    class ObjectDestroyMessage : MessageBase
+    readonly struct ObjectSpawnFinishedMessage : IMessageBase
+    {
+        public void Deserialize(NetworkReader reader) { }
+
+        public void Serialize(NetworkWriter writer) { }
+    }
+
+    struct ObjectDestroyMessage : IMessageBase
     {
         public uint netId;
 
-        public override void Deserialize(NetworkReader reader)
+        public void Deserialize(NetworkReader reader)
         {
             netId = reader.ReadPackedUInt32();
         }
 
-        public override void Serialize(NetworkWriter writer)
+        public void Serialize(NetworkWriter writer)
         {
             writer.WritePackedUInt32(netId);
         }
     }
 
-    class ObjectHideMessage : MessageBase
+    struct ObjectHideMessage : IMessageBase
     {
         public uint netId;
 
-        public override void Deserialize(NetworkReader reader)
+        public void Deserialize(NetworkReader reader)
         {
             netId = reader.ReadPackedUInt32();
         }
 
-        public override void Serialize(NetworkWriter writer)
+        public void Serialize(NetworkWriter writer)
         {
             writer.WritePackedUInt32(netId);
         }
     }
 
-    class ClientAuthorityMessage : MessageBase
+    struct ClientAuthorityMessage : IMessageBase
     {
         public uint netId;
         public bool authority;
 
-        public override void Deserialize(NetworkReader reader)
+        public void Deserialize(NetworkReader reader)
         {
             netId = reader.ReadPackedUInt32();
             authority = reader.ReadBoolean();
         }
 
-        public override void Serialize(NetworkWriter writer)
+        public void Serialize(NetworkWriter writer)
         {
             writer.WritePackedUInt32(netId);
             writer.Write(authority);
         }
     }
 
-    class UpdateVarsMessage : MessageBase
+    struct UpdateVarsMessage : IMessageBase
     {
         public uint netId;
-        public byte[] payload;
+        // the serialized component data
+        // -> ArraySegment to avoid unnecessary allocations
+        public ArraySegment<byte> payload;
 
-        public override void Deserialize(NetworkReader reader)
+        public void Deserialize(NetworkReader reader)
         {
             netId = reader.ReadPackedUInt32();
-            payload = reader.ReadBytesAndSize();
+            payload = reader.ReadBytesAndSizeSegment();
         }
 
-        public override void Serialize(NetworkWriter writer)
+        public void Serialize(NetworkWriter writer)
         {
             writer.WritePackedUInt32(netId);
-            writer.WriteBytesAndSize(payload);
+            writer.WriteBytesAndSizeSegment(payload);
         }
     }
 
     // A client sends this message to the server
     // to calculate RTT and synchronize time
-    class NetworkPingMessage : DoubleMessage
+    struct NetworkPingMessage : IMessageBase
     {
-        public NetworkPingMessage() {}
+        public double value;
 
-        public NetworkPingMessage(double value) : base(value) {}
+        public NetworkPingMessage(double value)
+        {
+            this.value = value;
+        }
+
+        public void Deserialize(NetworkReader reader)
+        {
+            value = reader.ReadDouble();
+        }
+
+        public void Serialize(NetworkWriter writer)
+        {
+            writer.Write(value);
+        }
     }
 
     // The server responds with this message
     // The client can use this to calculate RTT and sync time
-    class NetworkPongMessage : MessageBase
+    struct NetworkPongMessage : IMessageBase
     {
         public double clientTime;
         public double serverTime;
 
-        public override void Deserialize(NetworkReader reader)
+        public void Deserialize(NetworkReader reader)
         {
             clientTime = reader.ReadDouble();
             serverTime = reader.ReadDouble();
         }
 
-        public override void Serialize(NetworkWriter writer)
+        public void Serialize(NetworkWriter writer)
         {
             writer.Write(clientTime);
             writer.Write(serverTime);
