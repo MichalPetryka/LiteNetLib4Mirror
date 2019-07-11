@@ -109,38 +109,45 @@ namespace Mirror
             return elapsed > 0 ? delta.magnitude / elapsed : 0; // avoid NaN
         }
 
+        private DataPoint temp = new DataPoint();
+
         // serialization is needed by OnSerialize and by manual sending from authority
         void DeserializeFromReader(NetworkReader reader)
         {
             // put it into a data point immediately
-            DataPoint temp = new DataPoint
-            {
-                // deserialize position
-                localPosition = reader.ReadVector3()
-            };
+            // deserialize position
+            temp.localPosition = reader.ReadVector3();
 
-            // deserialize rotation
-            if (compressRotation == Compression.None)
+            switch (compressRotation)
             {
-                // read 3 floats = 16 byte
-                float x = reader.ReadSingle();
-                float y = reader.ReadSingle();
-                float z = reader.ReadSingle();
-                temp.localRotation = Quaternion.Euler(x, y, z);
-            }
-            else if (compressRotation == Compression.Much)
-            {
-                // read 3 byte. scaling [0,255] to [0,360]
-                float x = FloatBytePacker.ScaleByteToFloat(reader.ReadByte(), byte.MinValue, byte.MaxValue, 0, 360);
-                float y = FloatBytePacker.ScaleByteToFloat(reader.ReadByte(), byte.MinValue, byte.MaxValue, 0, 360);
-                float z = FloatBytePacker.ScaleByteToFloat(reader.ReadByte(), byte.MinValue, byte.MaxValue, 0, 360);
-                temp.localRotation = Quaternion.Euler(x, y, z);
-            }
-            else if (compressRotation == Compression.Lots)
-            {
-                // read 2 byte, 5 bits per float
-                float[] xyz = FloatBytePacker.UnpackUShortIntoThreeFloats(reader.ReadUInt16(), 0, 360);
-                temp.localRotation = Quaternion.Euler(xyz[0], xyz[1], xyz[2]);
+                // deserialize rotation
+                case Compression.None:
+                {
+                    // read 3 floats = 16 byte
+                    float x = reader.ReadSingle();
+                    float y = reader.ReadSingle();
+                    float z = reader.ReadSingle();
+                    temp.localRotation = Quaternion.Euler(x, y, z);
+                    break;
+                }
+
+                case Compression.Much:
+                {
+                    // read 3 byte. scaling [0,255] to [0,360]
+                    float x = FloatBytePacker.ScaleByteToFloat(reader.ReadByte(), byte.MinValue, byte.MaxValue, 0, 360);
+                    float y = FloatBytePacker.ScaleByteToFloat(reader.ReadByte(), byte.MinValue, byte.MaxValue, 0, 360);
+                    float z = FloatBytePacker.ScaleByteToFloat(reader.ReadByte(), byte.MinValue, byte.MaxValue, 0, 360);
+                    temp.localRotation = Quaternion.Euler(x, y, z);
+                    break;
+                }
+
+                case Compression.Lots:
+                {
+                    // read 2 byte, 5 bits per float
+                    float[] xyz = FloatBytePacker.UnpackUShortIntoThreeFloats(reader.ReadUInt16(), 0, 360);
+                    temp.localRotation = Quaternion.Euler(xyz[0], xyz[1], xyz[2]);
+                    break;
+                }
             }
 
             temp.timeStamp = Time.time;
@@ -224,8 +231,9 @@ namespace Mirror
         void CmdClientToServerSync(ArraySegment<byte> payload)
         {
             // deserialize payload
-            NetworkReader reader = new NetworkReader(payload);
+            NetworkReader reader = NetworkReaderPool.GetPooledReader(payload);
             DeserializeFromReader(reader);
+            NetworkReaderPool.Recycle(reader);
 
             // server-only mode does no interpolation to save computations,
             // but let's set the position directly

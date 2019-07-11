@@ -116,7 +116,7 @@ namespace Mirror.LiteNetLib4Mirror
 		#region Overridable methods
 		protected internal virtual string GenerateCode()
 		{
-			return LiteNetLib4MirrorUtils.ToBase64(LiteNetLib4MirrorUtils.Concatenate(Application.productName, Application.companyName, Application.unityVersion, LiteNetLib4MirrorCore.TransportVersion, Singleton.authCode));
+			return LiteNetLib4MirrorUtils.ToBase64(Application.productName + Application.companyName + Application.unityVersion + LiteNetLib4MirrorCore.TransportVersion + Singleton.authCode);
 		}
 
 		protected internal virtual void ProcessConnectionRequest(ConnectionRequest request, string code)

@@ -807,7 +807,9 @@ namespace Mirror
             }
 
             if (LogFilter.Debug) Debug.Log("OnCommandMessage for netId=" + msg.netId + " conn=" + conn);
-            identity.HandleCommand(msg.componentIndex, msg.functionHash, new NetworkReader(msg.payload));
+            NetworkReader reader = NetworkReaderPool.GetPooledReader(msg.payload);
+            identity.HandleCommand(msg.componentIndex, msg.functionHash, reader);
+            NetworkReaderPool.Recycle(reader);
         }
 
         internal static void SpawnObject(GameObject obj)
@@ -843,11 +845,9 @@ namespace Mirror
 
             // serialize all components with initialState = true
             // (can be null if has none)
-            NetworkWriter serialized = identity.OnSerializeAllSafely(true);
-
             // convert to ArraySegment to avoid reader allocations
             // (need to handle null case too)
-            ArraySegment<byte> segment = serialized != null ? serialized.ToArraySegment() : default;
+            ArraySegment<byte> segment = identity.OnSerializeAllSafely(true, out NetworkWriter serialized) ? serialized.ToArraySegment() : default;
 
             // 'identity' is a prefab that should be spawned
             if (identity.sceneId == 0)

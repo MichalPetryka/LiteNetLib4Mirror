@@ -575,19 +575,20 @@ namespace Mirror
 
         // serialize all components (or only dirty ones if not initial state)
         // -> returns serialized data of everything dirty,  null if nothing was dirty
-        internal NetworkWriter OnSerializeAllSafely(bool initialState)
+        internal bool OnSerializeAllSafely(bool initialState, out NetworkWriter onSerializeWriter)
         {
+            onSerializeWriter = null;
             if (networkBehavioursCache.Length > 64)
             {
                 Debug.LogError("Only 64 NetworkBehaviour components are allowed for NetworkIdentity: " + name + " because of the dirtyComponentMask");
-                return null;
+                return false;
             }
             ulong dirtyComponentsMask = GetDirtyMask(networkBehavioursCache, initialState);
 
             if (dirtyComponentsMask == 0L)
-                return null;
+                return false;
 
-            NetworkWriter onSerializeWriter = NetworkWriterPool.GetPooledWriter();
+            onSerializeWriter = NetworkWriterPool.GetPooledWriter();
             onSerializeWriter.WritePackedUInt64(dirtyComponentsMask); // WritePacked64 so we don't write full 8 bytes if we don't have to
 
             foreach (NetworkBehaviour comp in networkBehavioursCache)
@@ -610,7 +611,7 @@ namespace Mirror
                 }
             }
 
-            return onSerializeWriter;
+            return true;
         }
 
         ulong GetDirtyMask(NetworkBehaviour[] components, bool initialState)
@@ -1030,10 +1031,9 @@ namespace Mirror
             // don't have any.
             if (observers == null || observers.Count == 0)
                 return;
-
+            
             // serialize all the dirty components and send (if any were dirty)
-            NetworkWriter payload = OnSerializeAllSafely(false);
-            if (payload != null)
+            if (OnSerializeAllSafely(false, out NetworkWriter payload))
             {
                 // populate cached UpdateVarsMessage and send
                 varsMessage.netId = netId;
@@ -1041,7 +1041,7 @@ namespace Mirror
                 // (never null because of our above check)
                 varsMessage.payload = payload.ToArraySegment();
                 NetworkServer.SendToReady(this, varsMessage);
-                NetworkWriterPool.Recycle(payload);
+            	NetworkWriterPool.Recycle(payload);
             }
         }
     }

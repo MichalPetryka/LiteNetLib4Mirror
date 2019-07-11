@@ -80,7 +80,7 @@ namespace Mirror
         // unpack a message we received
         public static T Unpack<T>(byte[] data) where T : IMessageBase, new()
         {
-            NetworkReader reader = new NetworkReader(data);
+            NetworkReader reader = NetworkReaderPool.GetPooledReader(data);
 
             int msgType = GetId<T>();
 
@@ -88,8 +88,9 @@ namespace Mirror
             if (id != msgType)
                 throw new FormatException("Invalid message,  could not unpack " + typeof(T).FullName);
 
-            T message = new T();
+            T message = typeof(T).IsValueType ? default : new T();
             message.Deserialize(reader);
+            NetworkReaderPool.Recycle(reader);
             return message;
         }
 
@@ -102,7 +103,7 @@ namespace Mirror
             // read message type (varint)
             try
             {
-                msgType = (int)messageReader.ReadUInt16();
+                msgType = messageReader.ReadUInt16();
                 return true;
             }
             catch (System.IO.EndOfStreamException)
@@ -126,18 +127,15 @@ namespace Mirror
             //
             // let's catch them all and then disconnect that connection to avoid
             // further attacks.
-            T message = default;
             try
             {
-                message = networkMessage.ReadMessage<T>();
+                handler(networkMessage.conn, networkMessage.ReadMessage<T>());
             }
             catch (Exception exception)
             {
                 Debug.LogError("Closed connection: " + networkMessage.conn.connectionId + ". This can happen if the other side accidentally (or an attacker intentionally) sent invalid data. Reason: " + exception);
                 networkMessage.conn.Disconnect();
-                return;
             }
-            handler(networkMessage.conn, message);
         };
     }
 }

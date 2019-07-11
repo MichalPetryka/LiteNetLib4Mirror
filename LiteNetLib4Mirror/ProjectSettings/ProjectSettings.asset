@@ -500,7 +500,7 @@ PlayerSettings:
     1: LITENETLIB4MIRROR;MIRROR;MIRROR_1726_OR_NEWER;MIRROR_3_0_OR_NEWER;MIRROR_WRITERSEND
   platformArchitecture: {}
   scriptingBackend:
-    Standalone: 1
+    Standalone: 0
   il2cppCompilerConfiguration: {}
   managedStrippingLevel: {}
   incrementalIl2cppBuild: {}

@@ -21,26 +21,44 @@ namespace Mirror
         // internal buffer
         // byte[] pointer would work, but we use ArraySegment to also support
         // the ArraySegment constructor
-        ArraySegment<byte> buffer;
+        internal ArraySegment<byte> buffer;
 
         // 'int' is the best type for .Position. 'short' is too small if we send >32kb which would result in negative .Position
         // -> converting long to int is fine until 2GB of data (MAX_INT), so we don't have to worry about overflows here
         public int Position;
         public int Length => buffer.Count;
+        internal bool pooled;
+        internal readonly bool reusable;
 
         // cache encoding instead of creating it each time
         // 1000 readers before:  1MB GC, 30ms
         // 1000 readers after: 0.8MB GC, 18ms
         static readonly UTF8Encoding encoding = new UTF8Encoding(false, true);
 
-        public NetworkReader(byte[] bytes)
+        public NetworkReader(byte[] bytes, bool reusable = false)
         {
             buffer = new ArraySegment<byte>(bytes);
+            Position = 0;
+            this.reusable = reusable;
         }
 
-        public NetworkReader(ArraySegment<byte> segment)
+        public NetworkReader(ArraySegment<byte> segment, bool reusable = false)
         {
             buffer = segment;
+            Position = 0;
+            this.reusable = reusable;
+        }
+
+        internal void SetBuffer(byte[] bytes)
+        {
+            buffer = new ArraySegment<byte>(bytes);
+            Position = 0;
+        }
+
+        internal void SetBuffer(ArraySegment<byte> segment)
+        {
+            buffer = segment;
+            Position = 0;
         }
 
         public byte ReadByte()
@@ -120,7 +138,7 @@ namespace Mirror
             int realSize = size - 1;
 
             // make sure it's within limits to avoid allocation attacks etc.
-            if (size - 1 >= NetworkWriter.MaxStringLength)
+            if (realSize >= NetworkWriter.MaxStringLength)
             {
                 throw new EndOfStreamException("ReadString too long: " + realSize + ". Limit is: " + NetworkWriter.MaxStringLength);
             }

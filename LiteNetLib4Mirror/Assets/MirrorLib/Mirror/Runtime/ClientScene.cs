@@ -346,8 +346,9 @@ namespace Mirror
             // (Count is 0 if there were no components)
             if (payload.Count > 0)
             {
-                NetworkReader payloadReader = new NetworkReader(payload);
+                NetworkReader payloadReader = NetworkReaderPool.GetPooledReader(payload);
                 identity.OnUpdateVars(payloadReader, true);
+                NetworkReaderPool.Recycle(payloadReader);
             }
 
             identity.netId = netId;
@@ -571,7 +572,9 @@ namespace Mirror
 
             if (NetworkIdentity.spawned.TryGetValue(msg.netId, out NetworkIdentity localObject) && localObject != null)
             {
-                localObject.OnUpdateVars(new NetworkReader(msg.payload), false);
+                NetworkReader reader = NetworkReaderPool.GetPooledReader(msg.payload);
+                localObject.OnUpdateVars(reader, false);
+                NetworkReaderPool.Recycle(reader);
             }
             else
             {
@@ -585,7 +588,9 @@ namespace Mirror
 
             if (NetworkIdentity.spawned.TryGetValue(msg.netId, out NetworkIdentity identity))
             {
-                identity.HandleRPC(msg.componentIndex, msg.functionHash, new NetworkReader(msg.payload));
+                NetworkReader reader = NetworkReaderPool.GetPooledReader(msg.payload);
+                identity.HandleRPC(msg.componentIndex, msg.functionHash, reader);
+                NetworkReaderPool.Recycle(reader);
             }
         }
 
@@ -595,7 +600,9 @@ namespace Mirror
 
             if (NetworkIdentity.spawned.TryGetValue(msg.netId, out NetworkIdentity identity))
             {
-                identity.HandleSyncEvent(msg.componentIndex, msg.functionHash, new NetworkReader(msg.payload));
+                NetworkReader reader = NetworkReaderPool.GetPooledReader(msg.payload);
+                identity.HandleSyncEvent(msg.componentIndex, msg.functionHash, reader);
+                NetworkReaderPool.Recycle(reader);
             }
             else
             {

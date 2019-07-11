@@ -576,7 +576,7 @@ namespace Mirror.Weaver
                             }
                             catch (Exception ex)
                             {
-                                Error(ex.Message);
+                                Weaver.Error(ex.ToString());
                                 throw ex;
                             }
                         }

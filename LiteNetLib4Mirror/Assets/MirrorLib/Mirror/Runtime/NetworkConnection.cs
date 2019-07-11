@@ -208,19 +208,12 @@ namespace Mirror
             visList.Clear();
         }
 
-        [EditorBrowsable(EditorBrowsableState.Never), Obsolete("Use InvokeHandler<T> instead")]
-        public bool InvokeHandlerNoData(int msgType)
-        {
-            return InvokeHandler(msgType, null);
-        }
-
         internal bool InvokeHandler(int msgType, NetworkReader reader)
         {
             if (messageHandlers.TryGetValue(msgType, out NetworkMessageDelegate msgDelegate))
             {
                 NetworkMessage message = new NetworkMessage
                 {
-                    msgType = msgType,
                     reader = reader,
                     conn = this
                 };
@@ -235,7 +228,9 @@ namespace Mirror
         public bool InvokeHandler<T>(T msg) where T : IMessageBase
         {
             NetworkWriter writer = MessagePacker.PackWriter(msg);
-            bool result = InvokeHandler(MessagePacker.GetId<T>(), new NetworkReader(writer.ToArraySegment()));
+            NetworkReader reader = NetworkReaderPool.GetPooledReader(writer.ToArraySegment());
+            bool result = InvokeHandler(MessagePacker.GetId<T>(), reader);
+            NetworkReaderPool.Recycle(reader);
             NetworkWriterPool.Recycle(writer);
             return result;
         }
@@ -250,7 +245,7 @@ namespace Mirror
         public virtual void TransportReceive(ArraySegment<byte> buffer)
         {
             // unpack message
-            NetworkReader reader = new NetworkReader(buffer);
+            NetworkReader reader = NetworkReaderPool.GetPooledReader(buffer);
             if (MessagePacker.UnpackMessage(reader, out int msgType))
             {
                 // logging
@@ -267,6 +262,7 @@ namespace Mirror
                 Debug.LogError("Closed connection: " + connectionId + ". Invalid message header.");
                 Disconnect();
             }
+            NetworkReaderPool.Recycle(reader);
         }
 
         public virtual bool TransportSend(int channelId, byte[] bytes)

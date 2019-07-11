@@ -5,9 +5,13 @@ namespace LiteNetLib.Utils
 {
     public class NetPacketProcessor
     {
+        private static class HashCache<T>
+        {
+            public static bool Initialized;
+            public static ulong Id;
+        }
+
         protected delegate void SubscribeDelegate(NetDataReader reader, object userData);
-        private readonly Dictionary<string, ulong> _hashCache = new Dictionary<string, ulong>();
-        private readonly char[] _hashBuffer = new char[1024];
         private readonly NetSerializer _netSerializer;
         private readonly Dictionary<ulong, SubscribeDelegate> _callbacks = new Dictionary<ulong, SubscribeDelegate>();
         private readonly NetDataWriter _netDataWriter = new NetDataWriter();
@@ -23,22 +27,20 @@ namespace LiteNetLib.Utils
         }
 
         //FNV-1 64 bit hash
-        protected virtual ulong GetHash(Type type)
+        protected virtual ulong GetHash<T>()
         {
-            ulong hash;
-            string typeName = type.FullName;
-            if (_hashCache.TryGetValue(typeName, out hash))
-            {
-                return hash;
-            }
-            hash = 14695981039346656037UL; //offset
-            typeName.CopyTo(0, _hashBuffer, 0, typeName.Length);
+            if(HashCache<T>.Initialized)
+                return HashCache<T>.Id;
+
+            ulong hash = 14695981039346656037UL; //offset
+            string typeName = typeof(T).FullName;
             for (var i = 0; i < typeName.Length; i++)
             {
-                hash = hash ^ _hashBuffer[i];
+                hash = hash ^ typeName[i];
                 hash *= 1099511628211UL; //prime
             }
-            _hashCache.Add(typeName, hash);
+            HashCache<T>.Initialized = true;
+            HashCache<T>.Id = hash;
             return hash;
         }
 
@@ -53,9 +55,9 @@ namespace LiteNetLib.Utils
             return action;
         }
 
-        protected virtual void WriteHash(Type type, NetDataWriter writer)
+        protected virtual void WriteHash<T>(NetDataWriter writer)
         {
-            writer.Put(GetHash(type));
+            writer.Put(GetHash<T>());
         }
 
         /// <summary>
@@ -96,9 +98,7 @@ namespace LiteNetLib.Utils
         public void ReadAllPackets(NetDataReader reader)
         {
             while (reader.AvailableBytes > 0)
-            {
                 ReadPacket(reader);
-            }
         }
 
         /// <summary>
@@ -110,9 +110,7 @@ namespace LiteNetLib.Utils
         public void ReadAllPackets(NetDataReader reader, object userData)
         {
             while (reader.AvailableBytes > 0)
-            {
                 ReadPacket(reader, userData);
-            }
         }
 
         /// <summary>
@@ -155,20 +153,20 @@ namespace LiteNetLib.Utils
 
         public void Write<T>(NetDataWriter writer, T packet) where T : class, new()
         {
-            WriteHash(typeof(T), writer);
+            WriteHash<T>(writer);
             _netSerializer.Serialize(writer, packet);
         }
 
         public void WriteNetSerializable<T>(NetDataWriter writer, T packet) where T : INetSerializable
         {
-            WriteHash(typeof(T), writer);
+            WriteHash<T>(writer);
             packet.Serialize(writer);
         }
 
         public byte[] Write<T>(T packet) where T : class, new()
         {
             _netDataWriter.Reset();
-            WriteHash(typeof(T), _netDataWriter);
+            WriteHash<T>(_netDataWriter);
             _netSerializer.Serialize(_netDataWriter, packet);
             return _netDataWriter.CopyData();
         }
@@ -176,7 +174,7 @@ namespace LiteNetLib.Utils
         public byte[] WriteNetSerializable<T>(T packet) where T : INetSerializable
         {
             _netDataWriter.Reset();
-            WriteHash(typeof(T), _netDataWriter);
+            WriteHash<T>(_netDataWriter);
             packet.Serialize(_netDataWriter);
             return _netDataWriter.CopyData();
         }
@@ -201,7 +199,7 @@ namespace LiteNetLib.Utils
         public void Subscribe<T>(Action<T> onReceive, Func<T> packetConstructor) where T : class, new()
         {
             _netSerializer.Register<T>();
-            _callbacks[GetHash(typeof(T))] = (reader, userData) =>
+            _callbacks[GetHash<T>()] = (reader, userData) =>
             {
                 var reference = packetConstructor();
                 _netSerializer.Deserialize(reader, reference);
@@ -218,7 +216,7 @@ namespace LiteNetLib.Utils
         public void Subscribe<T, TUserData>(Action<T, TUserData> onReceive, Func<T> packetConstructor) where T : class, new()
         {
             _netSerializer.Register<T>();
-            _callbacks[GetHash(typeof(T))] = (reader, userData) =>
+            _callbacks[GetHash<T>()] = (reader, userData) =>
             {
                 var reference = packetConstructor();
                 _netSerializer.Deserialize(reader, reference);
@@ -236,7 +234,7 @@ namespace LiteNetLib.Utils
         {
             _netSerializer.Register<T>();
             var reference = new T();
-            _callbacks[GetHash(typeof(T))] = (reader, userData) =>
+            _callbacks[GetHash<T>()] = (reader, userData) =>
             {
                 _netSerializer.Deserialize(reader, reference);
                 onReceive(reference);
@@ -253,7 +251,7 @@ namespace LiteNetLib.Utils
         {
             _netSerializer.Register<T>();
             var reference = new T();
-            _callbacks[GetHash(typeof(T))] = (reader, userData) =>
+            _callbacks[GetHash<T>()] = (reader, userData) =>
             {
                 _netSerializer.Deserialize(reader, reference);
                 onReceive(reference, (TUserData)userData);
@@ -264,7 +262,7 @@ namespace LiteNetLib.Utils
             Action<T, TUserData> onReceive, 
             Func<T> packetConstructor) where T : INetSerializable
         {
-            _callbacks[GetHash(typeof(T))] = (reader, userData) =>
+            _callbacks[GetHash<T>()] = (reader, userData) =>
             {
                 var pkt = packetConstructor();
                 pkt.Deserialize(reader);
@@ -276,7 +274,7 @@ namespace LiteNetLib.Utils
             Action<T> onReceive,
             Func<T> packetConstructor) where T : INetSerializable
         {
-            _callbacks[GetHash(typeof(T))] = (reader, userData) =>
+            _callbacks[GetHash<T>()] = (reader, userData) =>
             {
                 var pkt = packetConstructor();
                 pkt.Deserialize(reader);
@@ -288,7 +286,7 @@ namespace LiteNetLib.Utils
             Action<T, TUserData> onReceive) where T : INetSerializable, new()
         {
             var reference = new T();
-            _callbacks[GetHash(typeof(T))] = (reader, userData) =>
+            _callbacks[GetHash<T>()] = (reader, userData) =>
             {
                 reference.Deserialize(reader);
                 onReceive(reference, (TUserData)userData);
@@ -299,7 +297,7 @@ namespace LiteNetLib.Utils
             Action<T> onReceive) where T : INetSerializable, new()
         {
             var reference = new T();
-            _callbacks[GetHash(typeof(T))] = (reader, userData) =>
+            _callbacks[GetHash<T>()] = (reader, userData) =>
             {
                 reference.Deserialize(reader);
                 onReceive(reference);
@@ -313,7 +311,7 @@ namespace LiteNetLib.Utils
         /// <returns>true if remove is success</returns>
         public bool RemoveSubscription<T>()
         {
-            return _callbacks.Remove(GetHash(typeof(T)));
+            return _callbacks.Remove(GetHash<T>());
         }
     }
 }

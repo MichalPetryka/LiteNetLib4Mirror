@@ -63,14 +63,6 @@ namespace Mirror.LiteNetLib4Mirror
 			return writer;
 		}
 
-		public static string Concatenate(params string[] array)
-		{
-			StringBuilder sb = new StringBuilder(array[0]);
-			for (int index = 1; index < array.Length; index++) sb.Append(array[index]);
-
-			return sb.ToString();
-		}
-
 		public static IPAddress Parse(string address)
 		{
 			switch (address)

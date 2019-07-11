@@ -336,16 +336,20 @@ namespace Mirror
         {
             if (LogFilter.Debug) Debug.Log("OnAnimationMessage for netId=" + netId);
 
+            NetworkReader reader = NetworkReaderPool.GetPooledReader(parameters);
             // handle and broadcast
-            HandleAnimMsg(stateHash, normalizedTime, new NetworkReader(parameters));
+            HandleAnimMsg(stateHash, normalizedTime, reader);
+            NetworkReaderPool.Recycle(reader);
             RpcOnAnimationClientMessage(stateHash, normalizedTime, parameters);
         }
 
         [Command]
         void CmdOnAnimationParametersServerMessage(ArraySegment<byte> parameters)
         {
+            NetworkReader reader = NetworkReaderPool.GetPooledReader(parameters);
             // handle and broadcast
-            HandleAnimParamsMsg(new NetworkReader(parameters));
+            HandleAnimParamsMsg(reader);
+            NetworkReaderPool.Recycle(reader);
             RpcOnAnimationParametersClientMessage(parameters);
         }
 
@@ -362,13 +366,17 @@ namespace Mirror
         [ClientRpc]
         void RpcOnAnimationClientMessage(int stateHash, float normalizedTime, ArraySegment<byte> parameters)
         {
-            HandleAnimMsg(stateHash, normalizedTime, new NetworkReader(parameters));
+            NetworkReader reader = NetworkReaderPool.GetPooledReader(parameters);
+            HandleAnimMsg(stateHash, normalizedTime, reader);
+            NetworkReaderPool.Recycle(reader);
         }
 
         [ClientRpc]
         void RpcOnAnimationParametersClientMessage(ArraySegment<byte> parameters)
         {
-            HandleAnimParamsMsg(new NetworkReader(parameters));
+            NetworkReader reader = NetworkReaderPool.GetPooledReader(parameters);
+            HandleAnimParamsMsg(reader);
+            NetworkReaderPool.Recycle(reader);
         }
 
         // server sends this to one client
