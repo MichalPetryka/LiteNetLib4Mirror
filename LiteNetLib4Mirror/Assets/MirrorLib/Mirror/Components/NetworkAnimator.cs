@@ -4,22 +4,35 @@ using UnityEngine.Serialization;
 
 namespace Mirror
 {
+    /// <summary>
+    /// A component to synchronize Mecanim animation states for networked objects.
+    /// </summary>
+    /// <remarks>
+    /// <para>The animation of game objects can be networked by this component. There are two models of authority for networked movement:</para>
+    /// <para>If the object has authority on the client, then it should animated locally on the owning client. The animation state information will be sent from the owning client to the server, then broadcast to all of the other clients. This is common for player objects.</para>
+    /// <para>If the object has authority on the server, then it should be animated on the server and state information will be sent to all clients. This is common for objects not related to a specific client, such as an enemy unit.</para>
+    /// <para>The NetworkAnimator synchronizes the animation parameters that are checked in the inspector view. It does not automatically sychronize triggers. The function SetTrigger can by used by an object with authority to fire an animation trigger on other clients.</para>
+    /// </remarks>
     [DisallowMultipleComponent]
     [AddComponentMenu("Network/NetworkAnimator")]
     [RequireComponent(typeof(NetworkIdentity))]
     [HelpURL("https://vis2k.github.io/Mirror/Components/NetworkAnimator")]
     public class NetworkAnimator : NetworkBehaviour
     {
-        // configuration
-        [FormerlySerializedAs("m_Animator")] public Animator animator;
+        /// <summary>
+        /// The animator component to synchronize.
+        /// </summary>
+        [FormerlySerializedAs("m_Animator")]
+        public Animator animator;
+
         // Note: not an object[] array because otherwise initialization is real annoying
         int[] lastIntParameters;
         float[] lastFloatParameters;
         bool[] lastBoolParameters;
         AnimatorControllerParameter[] parameters;
 
-        int animationHash;
-        int transitionHash;
+        int[] animationHash; // multiple layers
+        int[] transitionHash;
         float sendTimer;
 
         bool sendMessagesAllowed
@@ -53,6 +66,9 @@ namespace Mirror
             lastIntParameters = new int[parameters.Length];
             lastFloatParameters = new float[parameters.Length];
             lastBoolParameters = new bool[parameters.Length];
+            
+            animationHash = new int[animator.layerCount];
+            transitionHash = new int[animator.layerCount];
         }
 
         void FixedUpdate()
@@ -61,49 +77,54 @@ namespace Mirror
                 return;
 
             CheckSendRate();
-
-            if (!CheckAnimStateChanged(out int stateHash, out float normalizedTime))
+            
+            for(int i = 0; i < animator.layerCount; i++)
             {
-                return;
+                int stateHash;
+                float normalizedTime;
+                if (!CheckAnimStateChanged(out stateHash, out normalizedTime, i))
+                {
+                    continue;
+                }
+
+                NetworkWriter writer = NetworkWriterPool.GetPooledWriter();
+                WriteParameters(writer);
+
+                SendAnimationMessage(stateHash, normalizedTime, i, writer.ToArraySegment());
+                NetworkWriterPool.Recycle(writer);
             }
-
-            NetworkWriter writer = NetworkWriterPool.GetPooledWriter();
-            WriteParameters(writer);
-
-            SendAnimationMessage(stateHash, normalizedTime, writer.ToArraySegment());
-            NetworkWriterPool.Recycle(writer);
         }
-
-        bool CheckAnimStateChanged(out int stateHash, out float normalizedTime)
+        
+        bool CheckAnimStateChanged(out int stateHash, out float normalizedTime, int layerId)
         {
             stateHash = 0;
             normalizedTime = 0;
 
-            if (animator.IsInTransition(0))
+            if (animator.IsInTransition(layerId))
             {
-                AnimatorTransitionInfo tt = animator.GetAnimatorTransitionInfo(0);
-                if (tt.fullPathHash != transitionHash)
+                AnimatorTransitionInfo tt = animator.GetAnimatorTransitionInfo(layerId);
+                if (tt.fullPathHash != transitionHash[layerId])
                 {
                     // first time in this transition
-                    transitionHash = tt.fullPathHash;
-                    animationHash = 0;
+                    transitionHash[layerId] = tt.fullPathHash;
+                    animationHash[layerId] = 0;
                     return true;
                 }
                 return false;
             }
 
-            AnimatorStateInfo st = animator.GetCurrentAnimatorStateInfo(0);
-            if (st.fullPathHash != animationHash)
+            AnimatorStateInfo st = animator.GetCurrentAnimatorStateInfo(layerId);
+            if (st.fullPathHash != animationHash[layerId])
             {
                 // first time in this animation state
-                if (animationHash != 0)
+                if (animationHash[layerId] != 0)
                 {
                     // came from another animation directly - from Play()
                     stateHash = st.fullPathHash;
                     normalizedTime = st.normalizedTime;
                 }
-                transitionHash = 0;
-                animationHash = st.fullPathHash;
+                transitionHash[layerId] = 0;
+                animationHash[layerId] = st.fullPathHash;
                 return true;
             }
             return false;
@@ -124,15 +145,15 @@ namespace Mirror
             }
         }
 
-        void SendAnimationMessage(int stateHash, float normalizedTime, ArraySegment<byte> parameters)
+        void SendAnimationMessage(int stateHash, float normalizedTime, int layerId, ArraySegment<byte> parameters)
         {
             if (isServer)
             {
-                RpcOnAnimationClientMessage(stateHash, normalizedTime, parameters);
+                RpcOnAnimationClientMessage(stateHash, normalizedTime, layerId, parameters);
             }
             else if (ClientScene.readyConnection != null)
             {
-                CmdOnAnimationServerMessage(stateHash, normalizedTime, parameters);
+                CmdOnAnimationServerMessage(stateHash, normalizedTime, layerId, parameters);
             }
         }
 
@@ -148,7 +169,7 @@ namespace Mirror
             }
         }
 
-        void HandleAnimMsg(int stateHash, float normalizedTime, NetworkReader reader)
+        void HandleAnimMsg(int stateHash, float normalizedTime, int layerId, NetworkReader reader)
         {
             if (hasAuthority)
                 return;
@@ -158,7 +179,7 @@ namespace Mirror
             // NOTE: there is no API to play a transition(?)
             if (stateHash != 0)
             {
-                animator.Play(stateHash, 0, normalizedTime);
+                animator.Play(stateHash, layerId, normalizedTime);
             }
 
             ReadParameters(reader);
@@ -237,12 +258,12 @@ namespace Mirror
                 else if (par.type == AnimatorControllerParameterType.Float)
                 {
                     float newFloatValue = animator.GetFloat(par.nameHash);
-                    writer.Write(newFloatValue);
+                    writer.WriteSingle(newFloatValue);
                 }
                 else if (par.type == AnimatorControllerParameterType.Bool)
                 {
                     bool newBoolValue = animator.GetBool(par.nameHash);
-                    writer.Write(newBoolValue);
+                    writer.WriteBoolean(newBoolValue);
                 }
             }
             return dirtyBits != 0;
@@ -275,21 +296,30 @@ namespace Mirror
             }
         }
 
+        /// <summary>
+        /// Custom Serialization
+        /// </summary>
+        /// <param name="writer"></param>
+        /// <param name="forceAll"></param>
+        /// <returns></returns>
         public override bool OnSerialize(NetworkWriter writer, bool forceAll)
         {
             if (forceAll)
             {
-                if (animator.IsInTransition(0))
+                for(int i = 0; i < animator.layerCount; i++)
                 {
-                    AnimatorStateInfo st = animator.GetNextAnimatorStateInfo(0);
-                    writer.Write(st.fullPathHash);
-                    writer.Write(st.normalizedTime);
-                }
-                else
-                {
-                    AnimatorStateInfo st = animator.GetCurrentAnimatorStateInfo(0);
-                    writer.Write(st.fullPathHash);
-                    writer.Write(st.normalizedTime);
+                    if (animator.IsInTransition(i))
+                    {
+                        AnimatorStateInfo st = animator.GetNextAnimatorStateInfo(i);
+                        writer.WriteInt32(st.fullPathHash);
+                        writer.WriteSingle(st.normalizedTime);
+                    }
+                    else
+                    {
+                        AnimatorStateInfo st = animator.GetCurrentAnimatorStateInfo(i);
+                        writer.WriteInt32(st.fullPathHash);
+                        writer.WriteSingle(st.normalizedTime);
+                    }
                 }
                 WriteParameters(writer);
                 return true;
@@ -297,22 +327,40 @@ namespace Mirror
             return false;
         }
 
+        /// <summary>
+        /// Custom Deserialization
+        /// </summary>
+        /// <param name="reader"></param>
+        /// <param name="initialState"></param>
         public override void OnDeserialize(NetworkReader reader, bool initialState)
         {
             if (initialState)
             {
-                int stateHash = reader.ReadInt32();
-                float normalizedTime = reader.ReadSingle();
+                for(int i = 0; i < animator.layerCount; i++)
+                {
+                    int stateHash = reader.ReadInt32();
+                    float normalizedTime = reader.ReadSingle();
+                    animator.Play(stateHash, i, normalizedTime);
+                }
+
                 ReadParameters(reader);
-                animator.Play(stateHash, 0, normalizedTime);
             }
         }
 
+        /// <summary>
+        /// Causes an animation trigger to be invoked for a networked object.
+        /// <para>If local authority is set, and this is called from the client, then the trigger will be invoked on the server and all clients. If not, then this is called on the server, and the trigger will be called on all clients.</para>
+        /// </summary>
+        /// <param name="triggerName">Name of trigger.</param>
         public void SetTrigger(string triggerName)
         {
             SetTrigger(Animator.StringToHash(triggerName));
         }
 
+        /// <summary>
+        /// Causes an animation trigger to be invoked for a networked object.
+        /// </summary>
+        /// <param name="hash">Hash id of trigger (from the Animator).</param>
         public void SetTrigger(int hash)
         {
             if (hasAuthority && localPlayerAuthority)
@@ -332,15 +380,15 @@ namespace Mirror
 
         #region server message handlers
         [Command]
-        void CmdOnAnimationServerMessage(int stateHash, float normalizedTime, ArraySegment<byte> parameters)
+        void CmdOnAnimationServerMessage(int stateHash, float normalizedTime, int layerId, ArraySegment<byte> parameters)
         {
             if (LogFilter.Debug) Debug.Log("OnAnimationMessage for netId=" + netId);
 
             NetworkReader reader = NetworkReaderPool.GetPooledReader(parameters);
             // handle and broadcast
-            HandleAnimMsg(stateHash, normalizedTime, reader);
+            HandleAnimMsg(stateHash, normalizedTime, layerId, reader);
             NetworkReaderPool.Recycle(reader);
-            RpcOnAnimationClientMessage(stateHash, normalizedTime, parameters);
+            RpcOnAnimationClientMessage(stateHash, normalizedTime, layerId, parameters);
         }
 
         [Command]
@@ -364,10 +412,10 @@ namespace Mirror
 
         #region client message handlers
         [ClientRpc]
-        void RpcOnAnimationClientMessage(int stateHash, float normalizedTime, ArraySegment<byte> parameters)
+        void RpcOnAnimationClientMessage(int stateHash, float normalizedTime, int layerId, ArraySegment<byte> parameters)
         {
             NetworkReader reader = NetworkReaderPool.GetPooledReader(parameters);
-            HandleAnimMsg(stateHash, normalizedTime, reader);
+            HandleAnimMsg(stateHash, normalizedTime, layerId, reader);
             NetworkReaderPool.Recycle(reader);
         }
 

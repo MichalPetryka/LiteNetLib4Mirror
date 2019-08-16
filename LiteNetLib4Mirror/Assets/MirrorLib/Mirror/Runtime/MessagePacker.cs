@@ -31,9 +31,9 @@ namespace Mirror
         public static byte[] PackMessage(int msgType, MessageBase msg)
         {
             NetworkWriter packWriter = NetworkWriterPool.GetPooledWriter();
-
+            
             // write message type
-            packWriter.Write((short)msgType);
+            packWriter.WriteInt16((short)msgType);
 
             // serialize message into writer
             msg.Serialize(packWriter);
@@ -51,7 +51,7 @@ namespace Mirror
 
             // write message type
             int msgType = GetId<T>();
-            packWriter.Write((ushort)msgType);
+            packWriter.WriteUInt16((ushort)msgType);
 
             // serialize message into writer
             message.Serialize(packWriter);
@@ -68,7 +68,7 @@ namespace Mirror
 
             // write message type
             int msgType = GetId<T>();
-            packWriter.Write((ushort)msgType);
+            packWriter.WriteUInt16((ushort)msgType);
 
             // serialize message into writer
             message.Serialize(packWriter);

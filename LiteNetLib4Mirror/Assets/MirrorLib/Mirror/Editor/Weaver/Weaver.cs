@@ -100,6 +100,13 @@ namespace Mirror.Weaver
         public static TypeReference SyncObjectType;
         public static MethodReference InitSyncObjectReference;
 
+        // array segment
+        public static TypeReference ArraySegmentType;
+        public static MethodReference ArraySegmentConstructorReference;
+        public static MethodReference ArraySegmentArrayReference;
+        public static MethodReference ArraySegmentOffsetReference;
+        public static MethodReference ArraySegmentCountReference;
+
         // system types
         public static TypeReference voidType;
         public static TypeReference singleType;
@@ -290,6 +297,13 @@ namespace Mirror.Weaver
             IEnumeratorType = ImportCorLibType("System.Collections.IEnumerator");
             guidType = ImportCorLibType("System.Guid");
 
+            ArraySegmentType = ImportCorLibType("System.ArraySegment`1");
+            ArraySegmentArrayReference = Resolvers.ResolveProperty(ArraySegmentType, CurrentAssembly, "Array");
+            ArraySegmentCountReference = Resolvers.ResolveProperty(ArraySegmentType, CurrentAssembly, "Count");
+            ArraySegmentOffsetReference = Resolvers.ResolveProperty(ArraySegmentType, CurrentAssembly, "Offset");
+            ArraySegmentConstructorReference = Resolvers.ResolveMethod(ArraySegmentType, CurrentAssembly, ".ctor");
+
+
             NetworkReaderType = NetAssembly.MainModule.GetType("Mirror.NetworkReader");
             TypeDefinition NetworkReaderDef = NetworkReaderType.Resolve();
 
@@ -351,8 +365,8 @@ namespace Mirror.Weaver
 
             getBehaviourIsServer = Resolvers.ResolveMethod(NetworkBehaviourType, CurrentAssembly, "get_isServer");
             setSyncVarReference = Resolvers.ResolveMethod(NetworkBehaviourType, CurrentAssembly, "SetSyncVar");
-            setSyncVarHookGuard = Resolvers.ResolveMethod(NetworkBehaviourType, CurrentAssembly, "set_syncVarHookGuard");
-            getSyncVarHookGuard = Resolvers.ResolveMethod(NetworkBehaviourType, CurrentAssembly, "get_syncVarHookGuard");
+            setSyncVarHookGuard = Resolvers.ResolveMethod(NetworkBehaviourType, CurrentAssembly, "setSyncVarHookGuard");
+            getSyncVarHookGuard = Resolvers.ResolveMethod(NetworkBehaviourType, CurrentAssembly, "getSyncVarHookGuard");
 
             setSyncVarGameObjectReference = Resolvers.ResolveMethod(NetworkBehaviourType, CurrentAssembly, "SetSyncVarGameObject");
             getSyncVarGameObjectReference = Resolvers.ResolveMethod(NetworkBehaviourType, CurrentAssembly, "GetSyncVarGameObject");
