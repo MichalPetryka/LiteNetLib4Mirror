@@ -384,6 +384,11 @@ namespace LiteNetLib
                         DisconnectPeerForce(fromPeer, DisconnectReason.HostUnreachable, errorCode, null);
                     CreateEvent(NetEvent.EType.Error, remoteEndPoint: remoteEndPoint, errorCode: errorCode);
                     return -1;
+                case SocketError.NetworkUnreachable:
+	                if (TryGetPeer(remoteEndPoint, out fromPeer))
+		                DisconnectPeerForce(fromPeer, DisconnectReason.NetworkUnreachable, errorCode, null);
+	                CreateEvent(NetEvent.EType.Error, remoteEndPoint: remoteEndPoint, errorCode: errorCode);
+	                return -1;
                 case SocketError.ConnectionReset: //connection reset (connection closed)
                     if (TryGetPeer(remoteEndPoint, out fromPeer))
                         DisconnectPeerForce(fromPeer, DisconnectReason.RemoteConnectionClose, errorCode, null);
@@ -856,13 +861,8 @@ namespace LiteNetLib
             }
         }
 
-        internal void ReceiveFromPeer(NetPacket packet, IPEndPoint remoteEndPoint)
+        internal void ReceiveFromPeer(NetPacket packet, NetPeer fromPeer)
         {
-            NetPeer fromPeer;
-            if (!TryGetPeer(remoteEndPoint, out fromPeer))
-                return;
-
-            NetDebug.Write(NetLogLevel.Trace, "[NM] Received message");
             var deliveryMethod = packet.Property == PacketProperty.Channeled
                 ? (DeliveryMethod) (packet.ChannelId % 4)
                 : DeliveryMethod.Unreliable;

@@ -37,7 +37,7 @@ namespace Mirror
         // server
         Vector3 lastPosition;
         Quaternion lastRotation;
-        private Vector3 lastScale;
+        Vector3 lastScale;
 
         // client
         public class DataPoint
@@ -118,13 +118,12 @@ namespace Mirror
         void DeserializeFromReader(NetworkReader reader)
         {
             // put it into a data point immediately
-            // deserialize position
             Vector3 localPosition = reader.ReadVector3();
 
+            // deserialize rotation
             Quaternion localRotation = default;
             switch (compressRotation)
             {
-                // deserialize rotation
                 case Compression.None:
                 {
                     // read 3 floats = 16 byte
@@ -134,7 +133,6 @@ namespace Mirror
                     localRotation = Quaternion.Euler(x, y, z);
                     break;
                 }
-
                 case Compression.Much:
                 {
                     // read 3 byte. scaling [0,255] to [0,360]
@@ -144,21 +142,17 @@ namespace Mirror
                     localRotation = Quaternion.Euler(x, y, z);
                     break;
                 }
-
                 case Compression.Lots:
                 {
                     // read 2 byte, 5 bits per float
-                    ushort combined = reader.ReadUInt16();
-                    // note: we have to use 4 bits per float, so between 0x00 and 0x0F
-                    float x = FloatBytePacker.ScaleByteToFloat((byte)(combined & 0x1F), 0x00, 0x1F, 0, 360);
-                    float y = FloatBytePacker.ScaleByteToFloat((byte)((combined >> 5) & 0x1F), 0x00, 0x1F, 0, 360);
-                    float z = FloatBytePacker.ScaleByteToFloat((byte)(combined >> 10), 0x00, 0x1F, 0, 360);
-                    localRotation = Quaternion.Euler(x, y, z);
+                    Vector3 xyz = FloatBytePacker.UnpackUShortIntoThreeFloats(reader.ReadUInt16(), 0, 360);
+                    localRotation = Quaternion.Euler(xyz.x, xyz.y, xyz.z);
                     break;
                 }
             }
 
             Vector3 localScale = reader.ReadVector3();
+
             float timeStamp = Time.time;
 
             // movement speed: based on how far it moved since last time
@@ -258,7 +252,7 @@ namespace Mirror
         void CmdClientToServerSync(ArraySegment<byte> payload)
         {
             // deserialize payload
-            NetworkReader reader = NetworkReaderPool.GetPooledReader(payload);
+            NetworkReader reader = NetworkReaderPool.GetReader(payload);
             DeserializeFromReader(reader);
             NetworkReaderPool.Recycle(reader);
 
@@ -400,7 +394,7 @@ namespace Mirror
                         {
                             // serialize
                             // local position/rotation for VR support
-                            NetworkWriter writer = NetworkWriterPool.GetPooledWriter();
+                            NetworkWriter writer = NetworkWriterPool.GetWriter();
                             SerializeIntoWriter(writer, targetComponent.transform.localPosition, targetComponent.transform.localRotation, compressRotation, targetComponent.transform.localScale);
 
                             // send to server

@@ -9,7 +9,7 @@ namespace Mirror
         // reuse all readers, saves tons of memory allocations in hotpath
         static readonly Stack<NetworkReader> readerPool = new Stack<NetworkReader>();
 
-        public static NetworkReader GetPooledReader(byte[] data)
+        public static NetworkReader GetReader(byte[] data)
         {
             if (readerPool.Count != 0)
             {
@@ -23,7 +23,7 @@ namespace Mirror
             return new NetworkReader(data, true);
         }
 
-        public static NetworkReader GetPooledReader(ArraySegment<byte> data)
+        public static NetworkReader GetReader(ArraySegment<byte> data)
         {
             if (readerPool.Count != 0)
             {
@@ -48,7 +48,7 @@ namespace Mirror
             if (reader.reusable && !reader.pooled)
             {
                 reader.pooled = true;
-                reader.buffer = default;
+                reader.SetBuffer(default(ArraySegment<byte>));
                 readerPool.Push(reader);
             }
         }

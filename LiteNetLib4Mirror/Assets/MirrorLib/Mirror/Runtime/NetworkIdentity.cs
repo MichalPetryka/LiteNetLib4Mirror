@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
 using System.Security.Cryptography;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -45,7 +44,7 @@ namespace Mirror
     [ExecuteInEditMode]
     [DisallowMultipleComponent]
     [AddComponentMenu("Network/NetworkIdentity")]
-    [HelpURL("https://vis2k.github.io/Mirror/Components/NetworkIdentity")]
+    [HelpURL("https://mirror-networking.com/docs/Components/NetworkIdentity.html")]
     public sealed class NetworkIdentity : MonoBehaviour
     {
         // configuration
@@ -180,10 +179,16 @@ namespace Mirror
 
         // persistent scene id <sceneHash/32,sceneId/32>
         // (see AssignSceneID comments)
+        //  suppress "Field 'NetworkIdentity.m_SceneId' is never assigned to, and will always have its default value 0"
+        // when building standalone
+#pragma warning disable CS0649
         [SerializeField] ulong m_SceneId;
+#pragma warning restore CS0649
 
         // keep track of all sceneIds to detect scene duplicates
         static readonly Dictionary<ulong, NetworkIdentity> sceneIds = new Dictionary<ulong, NetworkIdentity>();
+
+        public NetworkIdentity GetSceneIdenity(ulong id) => sceneIds[id];
 
         // used when adding players
         internal void SetClientOwner(NetworkConnection conn)
@@ -223,18 +228,20 @@ namespace Mirror
         public static void ResetNextNetworkId() => nextNetworkId = 1;
 
         /// <summary>
-        /// The delegate type for the clientAuthorityCallback.
+        /// Obsolete: Host Migration was removed
         /// </summary>
         /// <param name="conn">The network connection that is gaining or losing authority.</param>
         /// <param name="identity">The object whose client authority status is being changed.</param>
         /// <param name="authorityState">The new state of client authority of the object for the connection.</param>
+        [EditorBrowsable(EditorBrowsableState.Never), Obsolete("Host Migration was removed")]
         public delegate void ClientAuthorityCallback(NetworkConnection conn, NetworkIdentity identity, bool authorityState);
 
         /// <summary>
-        /// A callback that can be populated to be notified when the client-authority state of objects changes.
+        /// Obsolete: Host Migration was removed
         /// <para>Whenever an object is spawned using SpawnWithClientAuthority, or the client authority status of an object is changed with AssignClientAuthority or RemoveClientAuthority, then this callback will be invoked.</para>
         /// <para>This callback is used by the NetworkMigrationManager to distribute client authority state to peers for host migration. If the NetworkMigrationManager is not being used, this callback does not need to be populated.</para>
         /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never), Obsolete("Host Migration was removed")]
         public static ClientAuthorityCallback clientAuthorityCallback;
 
         // used when the player object for a connection changes
@@ -311,7 +318,7 @@ namespace Mirror
             {
                 return false;
             }
-            prefab = (GameObject)PrefabUtility.GetCorrespondingObjectFromSource(gameObject);
+            prefab = PrefabUtility.GetCorrespondingObjectFromSource(gameObject);
 
             if (prefab == null)
             {
@@ -649,7 +656,7 @@ namespace Mirror
             // (jumping back later is WAY faster than allocating a temporary
             //  writer for the payload, then writing payload.size, payload)
             int headerPosition = writer.Position;
-            writer.WriteInt32((int)0);
+            writer.WriteInt32(0);
             int contentPosition = writer.Position;
 
             // write payload
@@ -661,7 +668,7 @@ namespace Mirror
             catch (Exception e)
             {
                 // show a detailed error and let the user know what went wrong
-                Debug.LogError("OnSerialize failed for: object=" + name + " component=" + comp.GetType() + " sceneId=" + m_SceneId.ToString("X") + "\n\n" + e.ToString());
+                Debug.LogError("OnSerialize failed for: object=" + name + " component=" + comp.GetType() + " sceneId=" + m_SceneId.ToString("X") + "\n\n" + e);
             }
             int endPosition = writer.Position;
 
@@ -676,22 +683,38 @@ namespace Mirror
         }
 
         // serialize all components (or only dirty ones if not initial state)
-        // -> returns serialized data of everything dirty,  null if nothing was dirty
-        internal bool OnSerializeAllSafely(bool initialState, out NetworkWriter onSerializeWriter)
+        // -> check ownerWritten/observersWritten to know if anything was written
+        internal void OnSerializeAllSafely(bool initialState, NetworkWriter ownerWriter, out int ownerWritten, NetworkWriter observersWriter, out int observersWritten)
         {
-            onSerializeWriter = null;
+            // clear 'written' variables
+            ownerWritten = observersWritten = 0;
+
             if (NetworkBehaviours.Length > 64)
             {
                 Debug.LogError("Only 64 NetworkBehaviour components are allowed for NetworkIdentity: " + name + " because of the dirtyComponentMask");
-                return false;
+                return;
             }
             ulong dirtyComponentsMask = GetDirtyMask(initialState);
 
             if (dirtyComponentsMask == 0L)
-                return false;
+                return;
 
-            onSerializeWriter = NetworkWriterPool.GetPooledWriter();
-            onSerializeWriter.WritePackedUInt64(dirtyComponentsMask); // WritePacked64 so we don't write full 8 bytes if we don't have to
+            // calculate syncMode mask at runtime. this allows users to change
+            // component.syncMode while the game is running, which can be a huge
+            // advantage over syncvar-based sync modes. e.g. if a player decides
+            // to share or not share his inventory, or to go invisible, etc.
+            //
+            // (this also lets the TestSynchronizingObjects test pass because
+            //  otherwise if we were to cache it in Awake, then we would call
+            //  GetComponents<NetworkBehaviour> before all the test behaviours
+            //  were added)
+            ulong syncModeObserversMask = GetSyncModeObserversMask();
+
+            // write regular dirty mask for owner,
+            // writer 'dirty mask & syncMode==Everyone' for everyone else
+            // (WritePacked64 so we don't write full 8 bytes if we don't have to)
+            ownerWriter.WritePackedUInt64(dirtyComponentsMask);
+            observersWriter.WritePackedUInt64(dirtyComponentsMask & syncModeObserversMask);
 
             foreach (NetworkBehaviour comp in NetworkBehaviours)
             {
@@ -700,20 +723,32 @@ namespace Mirror
                 // -> note: IsDirty() is false if the component isn't dirty or sendInterval isn't elapsed yet
                 if (initialState || comp.IsDirty())
                 {
-                    // serialize the data
                     if (LogFilter.Debug) Debug.Log("OnSerializeAllSafely: " + name + " -> " + comp.GetType() + " initial=" + initialState);
-                    OnSerializeSafely(comp, onSerializeWriter, initialState);
 
-                    // Clear dirty bits only if we are synchronizing data and not sending a spawn message.
-                    // This preserves the behavior in HLAPI
-                    if (!initialState)
+                    // serialize into ownerWriter first
+                    // (owner always gets everything!)
+                    int startPosition = ownerWriter.Position;
+                    OnSerializeSafely(comp, ownerWriter, initialState);
+                    ++ownerWritten;
+
+                    // copy into observersWriter too if SyncMode.Observers
+                    // -> we copy instead of calling OnSerialize again because
+                    //    we don't know what magic the user does in OnSerialize.
+                    // -> it's not guaranteed that calling it twice gets the
+                    //    same result
+                    // -> it's not guaranteed that calling it twice doesn't mess
+                    //    with the user's OnSerialize timing code etc.
+                    // => so we just copy the result without touching
+                    //    OnSerialize again
+                    if (comp.syncMode == SyncMode.Observers)
                     {
-                        comp.ClearAllDirtyBits();
+                        ArraySegment<byte> segment = ownerWriter.ToArraySegment();
+                        int length = ownerWriter.Position - startPosition;
+                        observersWriter.WriteBytes(segment.Array, startPosition, length);
+                        ++observersWritten;
                     }
                 }
             }
-
-            return true;
         }
 
         internal ulong GetDirtyMask(bool initialState)
@@ -733,6 +768,24 @@ namespace Mirror
             return dirtyComponentsMask;
         }
 
+        // a mask that contains all the components with SyncMode.Observers
+        internal ulong GetSyncModeObserversMask()
+        {
+            // loop through all components
+            ulong mask = 0UL;
+            NetworkBehaviour[] components = NetworkBehaviours;
+            for (int i = 0; i < NetworkBehaviours.Length; ++i)
+            {
+                NetworkBehaviour comp = components[i];
+                if (comp.syncMode == SyncMode.Observers)
+                {
+                    mask |= 1UL << i;
+                }
+            }
+
+            return mask;
+        }
+
         void OnDeserializeSafely(NetworkBehaviour comp, NetworkReader reader, bool initialState)
         {
             // read header as 4 bytes and calculate this chunk's start+end
@@ -750,7 +803,7 @@ namespace Mirror
             catch (Exception e)
             {
                 // show a detailed error and let the user know what went wrong
-                Debug.LogError("OnDeserialize failed for: object=" + name + " component=" + comp.GetType() + " sceneId=" + m_SceneId.ToString("X") + " length=" + contentSize + ". Possible Reasons:\n  * Do " + comp.GetType() + "'s OnSerialize and OnDeserialize calls write the same amount of data(" + contentSize +" bytes)? \n  * Was there an exception in " + comp.GetType() + "'s OnSerialize/OnDeserialize code?\n  * Are the server and client the exact same project?\n  * Maybe this OnDeserialize call was meant for another GameObject? The sceneIds can easily get out of sync if the Hierarchy was modified only in the client OR the server. Try rebuilding both.\n\n" + e);
+                Debug.LogError("OnDeserialize failed for: object=" + name + " component=" + comp.GetType() + " sceneId=" + m_SceneId.ToString("X") + " length=" + contentSize + ". Possible Reasons:\n  * Do " + comp.GetType() + "'s OnSerialize and OnDeserialize calls write the same amount of data(" + contentSize + " bytes)? \n  * Was there an exception in " + comp.GetType() + "'s OnSerialize/OnDeserialize code?\n  * Are the server and client the exact same project?\n  * Maybe this OnDeserialize call was meant for another GameObject? The sceneIds can easily get out of sync if the Hierarchy was modified only in the client OR the server. Try rebuilding both.\n\n" + e);
             }
 
             // now the reader should be EXACTLY at 'before + size'.
@@ -847,9 +900,10 @@ namespace Mirror
         {
             isLocalPlayer = true;
 
-            // there is an ordering issue here that originAuthority solves. OnStartAuthority should only be called if m_HasAuthority was false when this function began,
-            // or it will be called twice for this object. But that state is lost by the time OnStartAuthority is called below, so the original value is cached
-            // here to be checked below.
+            // There is an ordering issue here that originAuthority solves:
+            // OnStartAuthority should only be called if hasAuthority was false when this function began,
+            // or it will be called twice for this object, but that state is lost by the time OnStartAuthority
+            // is called below, so the original value is cached here to be checked below.
             bool originAuthority = hasAuthority;
             if (localPlayerAuthority)
             {
@@ -1016,35 +1070,49 @@ namespace Mirror
         }
 
         /// <summary>
-        /// Removes ownership for an object for a client by its connection.
-        /// <para>This applies to objects that had authority set by AssignClientAuthority, or NetworkServer.SpawnWithClientAuthority. Authority cannot be removed for player objects.</para>
+        /// Obsolete: Use <see cref="RemoveClientAuthority()"/> instead
         /// </summary>
         /// <param name="conn">The connection of the client to remove authority for.</param>
         /// <returns>True if authority is removed.</returns>
+        [EditorBrowsable(EditorBrowsableState.Never), Obsolete("NetworkConnection parameter is no longer needed and nothing is returned")]
         public bool RemoveClientAuthority(NetworkConnection conn)
+        {
+            RemoveClientAuthority();
+            return true;
+        }
+
+        /// <summary>
+        /// Removes ownership for an object.
+        /// <para>This applies to objects that had authority set by AssignClientAuthority, or NetworkServer.SpawnWithClientAuthority.</para>
+        /// <para>Authority cannot be removed for player objects.</para>
+        /// </summary>
+        public void RemoveClientAuthority()
         {
             if (!isServer)
             {
                 Debug.LogError("RemoveClientAuthority can only be call on the server for spawned objects.");
-                return false;
+                return;
             }
 
             if (connectionToClient != null)
             {
                 Debug.LogError("RemoveClientAuthority cannot remove authority for a player object");
-                return false;
+                return;
             }
 
-            if (clientAuthorityOwner == null)
+            if (clientAuthorityOwner != null)
             {
-                Debug.LogError("RemoveClientAuthority for " + gameObject + " has no clientAuthority owner.");
-                return false;
-            }
+                // send msg to that client
+                ClientAuthorityMessage msg = new ClientAuthorityMessage
+                {
+                    netId = netId,
+                    authority = false
+                };
 
-            if (clientAuthorityOwner != conn)
-            {
-                Debug.LogError("RemoveClientAuthority for " + gameObject + " has different owner.");
-                return false;
+                clientAuthorityOwner.Send(msg);
+#pragma warning disable CS0618 // Type or member is obsolete
+                clientAuthorityCallback?.Invoke(clientAuthorityOwner, this, false);
+#pragma warning restore CS0618 // Type or member is obsolete
             }
 
             clientAuthorityOwner.RemoveOwnedObject(this);
@@ -1052,17 +1120,6 @@ namespace Mirror
 
             // server now has authority (this is only called on server)
             ForceAuthority(true);
-
-            // send msg to that client
-            ClientAuthorityMessage msg = new ClientAuthorityMessage
-            {
-                netId = netId,
-                authority = false
-            };
-            conn.Send(msg);
-
-            clientAuthorityCallback?.Invoke(conn, this, false);
-            return true;
         }
 
         /// <summary>
@@ -1111,7 +1168,9 @@ namespace Mirror
             };
             conn.Send(msg);
 
+#pragma warning disable CS0618 // Type or member is obsolete
             clientAuthorityCallback?.Invoke(conn, this, true);
+#pragma warning restore CS0618 // Type or member is obsolete
             return true;
         }
 
@@ -1150,43 +1209,75 @@ namespace Mirror
         {
             if (observers != null && observers.Count > 0)
             {
+                // one writer for owner, one for observers
+                NetworkWriter ownerWriter = NetworkWriterPool.GetWriter();
+                NetworkWriter observersWriter = NetworkWriterPool.GetWriter();
+
                 // serialize all the dirty components and send (if any were dirty)
-                if (OnSerializeAllSafely(false, out NetworkWriter writer))
+                OnSerializeAllSafely(false, ownerWriter, out int ownerWritten, observersWriter, out int observersWritten);
+                if (ownerWritten > 0 || observersWritten > 0)
                 {
                     // populate cached UpdateVarsMessage and send
                     varsMessage.netId = netId;
-                    // segment to avoid reader allocations.
-                    // (never null because of our above check)
-                    varsMessage.payload = writer.ToArraySegment();
-                    NetworkServer.SendToReady(this, varsMessage);
 
-                    // only clear bits if we sent something
-                    ClearDirtyBits();
+                    // send ownerWriter to owner
+                    // (only if we serialized anything for owner)
+                    // (only if there is a connection (e.g. if not a monster),
+                    //  and if connection is ready because we use SendToReady
+                    //  below too)
+                    if (ownerWritten > 0)
+                    {
+                        varsMessage.payload = ownerWriter.ToArraySegment();
+                        if (connectionToClient != null && connectionToClient.isReady)
+                            NetworkServer.SendToClientOfPlayer(this, varsMessage);
+                    }
+
+                    // send observersWriter to everyone but owner
+                    // (only if we serialized anything for observers)
+                    if (observersWritten > 0)
+                    {
+                        varsMessage.payload = observersWriter.ToArraySegment();
+                        NetworkServer.SendToReady(this, varsMessage, false);
+                    }
+
+                    // clear dirty bits only for the components that we serialized
+                    // DO NOT clean ALL component's dirty bits, because
+                    // components can have different syncIntervals and we don't
+                    // want to reset dirty bits for the ones that were not
+                    // synced yet.
+                    // (we serialized only the IsDirty() components, or all of
+                    //  them if initialState. clearing the dirty ones is enough.)
+                    ClearDirtyComponentsDirtyBits();
                 }
-                return;
-            } 
-            // serialize all the dirty components and send (if any were dirty)
-            if (OnSerializeAllSafely(false, out NetworkWriter payload))
-            {
-                // populate cached UpdateVarsMessage and send
-                varsMessage.netId = netId;
-                // segment to avoid reader allocations.
-                // (never null because of our above check)
-                varsMessage.payload = payload.ToArraySegment();
-                NetworkServer.SendToReady(this, varsMessage);
-            	NetworkWriterPool.Recycle(payload);
+                NetworkWriterPool.Recycle(ownerWriter);
+                NetworkWriterPool.Recycle(observersWriter);
             }
             else
             {
-                ClearDirtyBits();
+                // clear all component's dirty bits
+                ClearAllComponentsDirtyBits();
             }
         }
 
-        private void ClearDirtyBits()
+        // clear all component's dirty bits no matter what
+        internal void ClearAllComponentsDirtyBits()
         {
             foreach (NetworkBehaviour comp in NetworkBehaviours)
             {
                 comp.ClearAllDirtyBits();
+            }
+        }
+
+        // clear only dirty component's dirty bits. ignores components which
+        // may be dirty but not ready to be synced yet (because of syncInterval)
+        internal void ClearDirtyComponentsDirtyBits()
+        {
+            foreach (NetworkBehaviour comp in NetworkBehaviours)
+            {
+                if (comp.IsDirty())
+                {
+                    comp.ClearAllDirtyBits();
+                }
             }
         }
     }

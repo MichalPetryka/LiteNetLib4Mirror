@@ -155,7 +155,7 @@ namespace Mirror.LiteNetLib4Mirror
 				}
 
 				ExternalIp = await device.GetExternalIPAsync();
-				await device.CreatePortMapAsync(new Mapping(networkProtocolType, ExternalIp ?? IPAddress.None, port, port, 0, ApplicationName)).ConfigureAwait(false);
+				await device.CreatePortMapAsync(new Mapping(networkProtocolType, IPAddress.None, port, port, 0, ApplicationName)).ConfigureAwait(false);
 				LastForwardedPort = port;
 				Debug.Log($"Port {port.ToString()} forwarded successfully!");
 			}

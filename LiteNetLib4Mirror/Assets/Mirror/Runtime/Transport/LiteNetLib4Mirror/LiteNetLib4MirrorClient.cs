@@ -79,7 +79,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static void OnNetworkReceive(NetPeer peer, NetPacketReader reader, DeliveryMethod deliverymethod)
 		{
-			LiteNetLib4MirrorTransport.Singleton.OnClientDataReceived.Invoke(reader.GetRemainingBytesSegment());
+			LiteNetLib4MirrorTransport.Singleton.OnClientDataReceived.Invoke(reader.GetRemainingBytesSegment(), -1);
 			reader.Recycle();
 		}
 

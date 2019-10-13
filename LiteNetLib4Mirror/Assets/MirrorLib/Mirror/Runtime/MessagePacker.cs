@@ -25,62 +25,68 @@ namespace Mirror
             return typeof(T).FullName.GetStableHashCode() & 0xFFFF;
         }
 
+        public static int GetId(Type type)
+        {
+            return type.FullName.GetStableHashCode() & 0xFFFF;
+        }
+
         // pack message before sending
-        // -> pass writer instead of byte[] so we can reuse it
+        // -> NetworkWriter passed as arg so that we can use .ToArraySegment
+        //    and do an allocation free send before recycling it.
         [EditorBrowsable(EditorBrowsableState.Never), Obsolete("Use Pack<T> instead")]
         public static byte[] PackMessage(int msgType, MessageBase msg)
         {
-            NetworkWriter packWriter = NetworkWriterPool.GetPooledWriter();
-            
-            // write message type
-            packWriter.WriteInt16((short)msgType);
+            NetworkWriter writer = NetworkWriterPool.GetWriter();
+            try
+            {
+                // write message type
+                writer.WriteInt16((short)msgType);
 
-            // serialize message into writer
-            msg.Serialize(packWriter);
+                // serialize message into writer
+                msg.Serialize(writer);
 
-            // return byte[]
-            byte[] data = packWriter.ToArray();
-            NetworkWriterPool.Recycle(packWriter);
-            return data;
+                // return byte[]
+                return writer.ToArray();
+            }
+            finally
+            {
+                NetworkWriterPool.Recycle(writer);
+            }
         }
 
         // pack message before sending
-        public static byte[] Pack<T>(T message) where T : IMessageBase
+        // -> NetworkWriter passed as arg so that we can use .ToArraySegment
+        //    and do an allocation free send before recycling it.
+        public static void Pack<T>(T message, NetworkWriter writer) where T : IMessageBase
         {
-            NetworkWriter packWriter = NetworkWriterPool.GetPooledWriter();
-
             // write message type
-            int msgType = GetId<T>();
-            packWriter.WriteUInt16((ushort)msgType);
+            int msgType = GetId(typeof(T));
+            writer.WriteUInt16((ushort)msgType);
 
             // serialize message into writer
-            message.Serialize(packWriter);
-
-            // return byte[]
-            byte[] data = packWriter.ToArray();
-            NetworkWriterPool.Recycle(packWriter);
-            return data;
+            message.Serialize(writer);
         }
 
-        public static NetworkWriter PackWriter<T>(T message) where T : IMessageBase
+        // helper function to pack message into a simple byte[] (which allocates)
+        // => useful for tests
+        // => useful for local client message enqueue
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public static byte[] Pack<T>(T message) where T : IMessageBase
         {
-            NetworkWriter packWriter = NetworkWriterPool.GetPooledWriter();
+            NetworkWriter writer = NetworkWriterPool.GetWriter();
 
-            // write message type
-            int msgType = GetId<T>();
-            packWriter.WriteUInt16((ushort)msgType);
+            Pack(message, writer);
+            byte[] data = writer.ToArray();
 
-            // serialize message into writer
-            message.Serialize(packWriter);
+            NetworkWriterPool.Recycle(writer);
 
-            // return byte[]
-            return packWriter;
+            return data;
         }
 
         // unpack a message we received
         public static T Unpack<T>(byte[] data) where T : IMessageBase, new()
         {
-            NetworkReader reader = NetworkReaderPool.GetPooledReader(data);
+            NetworkReader reader = NetworkReaderPool.GetReader(data);
 
             int msgType = GetId<T>();
 
@@ -113,7 +119,7 @@ namespace Mirror
             }
         }
 
-        internal static NetworkMessageDelegate MessageHandler<T>(Action<NetworkConnection, T> handler) where T : IMessageBase, new() => networkMessage =>
+        internal static NetworkMessageDelegate MessageHandler<T>(Action<NetworkConnection, T> handler, bool requireAuthenication) where T : IMessageBase, new() => networkMessage =>
         {
             // protect against DOS attacks if attackers try to send invalid
             // data packets to crash the server/client. there are a thousand
@@ -127,15 +133,32 @@ namespace Mirror
             //
             // let's catch them all and then disconnect that connection to avoid
             // further attacks.
+            T message = default;
             try
             {
-                handler(networkMessage.conn, networkMessage.ReadMessage<T>());
+                if (requireAuthenication && !networkMessage.conn.isAuthenticated)
+                {
+                    // message requires authentication, but the connection was not authenticated
+                    Debug.LogWarning($"Closing connection: {networkMessage.conn.connectionId}. Received message {typeof(T)} that required authentication, but the user has not authenticated yet");
+                    networkMessage.conn.Disconnect();
+                    return;
+                }
+
+                message = networkMessage.ReadMessage<T>();
             }
             catch (Exception exception)
             {
                 Debug.LogError("Closed connection: " + networkMessage.conn.connectionId + ". This can happen if the other side accidentally (or an attacker intentionally) sent invalid data. Reason: " + exception);
                 networkMessage.conn.Disconnect();
+                return;
             }
+            finally
+            {
+                // TODO: Figure out the correct channel
+                NetworkDiagnostics.OnReceive(message, networkMessage.channelId, networkMessage.reader.Length);
+            }
+
+            handler(networkMessage.conn, message);
         };
     }
 }
