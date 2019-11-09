@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using LiteNetLib;
+using LiteNetLib.Utils;
 using LiteNetLib4Mirror.Open.Nat;
 using UnityEngine;
 
@@ -114,13 +115,14 @@ namespace Mirror.LiteNetLib4Mirror
 		public UnityEventIntError onServerSocketError;
 
 		internal static bool Polling;
+		private static readonly NetDataWriter ConnectWriter = new NetDataWriter();
 		#region Overridable methods
-		protected internal virtual string GenerateCode()
+		protected internal virtual void GetConnectData(NetDataWriter writer)
 		{
-			return LiteNetLib4MirrorUtils.ToBase64(Application.productName + Application.companyName + Application.unityVersion + LiteNetLib4MirrorCore.TransportVersion + Singleton.authCode);
+			writer.Put(GetConnectKey());
 		}
 
-		protected internal virtual void ProcessConnectionRequest(ConnectionRequest request, string code)
+		protected internal virtual void ProcessConnectionRequest(ConnectionRequest request)
 		{
 			if (LiteNetLib4MirrorCore.Host.PeersCount >= maxConnections)
 			{
@@ -131,6 +133,11 @@ namespace Mirror.LiteNetLib4Mirror
 				Debug.LogWarning("Client tried to join with an invalid auth code! Current code:" + LiteNetLib4MirrorServer.Code);
 			}
 		}
+
+		protected internal virtual void OnConncetionRefused(DisconnectInfo disconnectinfo)
+		{
+
+		}
 		#endregion
 
 		internal void InitializeTransport()
@@ -140,6 +147,11 @@ namespace Mirror.LiteNetLib4Mirror
 				Singleton = this;
 				LiteNetLib4MirrorCore.State = LiteNetLib4MirrorCore.States.Idle;
 			}
+		}
+
+		private static string GetConnectKey()
+		{
+			return LiteNetLib4MirrorUtils.ToBase64(Application.productName + Application.companyName + Application.unityVersion + LiteNetLib4MirrorCore.TransportVersion + Singleton.authCode);
 		}
 
 		#region Unity Functions
@@ -168,6 +180,11 @@ namespace Mirror.LiteNetLib4Mirror
 		#endregion
 
 		#region Transport Overrides
+		public override bool Available()
+		{
+			return Application.platform != RuntimePlatform.WebGLPlayer;
+		}
+
 		public override bool ClientConnected()
 		{
 			return LiteNetLib4MirrorClient.IsConnected();
@@ -176,7 +193,9 @@ namespace Mirror.LiteNetLib4Mirror
 		public override void ClientConnect(string address)
 		{
 			clientAddress = address;
-			LiteNetLib4MirrorClient.ConnectClient(GenerateCode());
+			ConnectWriter.Reset();
+			GetConnectData(ConnectWriter);
+			LiteNetLib4MirrorClient.ConnectClient(ConnectWriter);
 		}
 
 		public override bool ClientSend(int channelId, ArraySegment<byte> data)
@@ -200,7 +219,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public override void ServerStart()
 		{
-			LiteNetLib4MirrorServer.StartServer(GenerateCode());
+			LiteNetLib4MirrorServer.StartServer(GetConnectKey());
 		}
 
 		public override bool ServerSend(List<int> connectionIds, int channelId, ArraySegment<byte> data)

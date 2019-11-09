@@ -109,7 +109,7 @@ namespace Mirror.LiteNetLib4Mirror
 		{
 			try
 			{
-				LiteNetLib4MirrorTransport.Singleton.ProcessConnectionRequest(request, request.Data.PeekString());
+				LiteNetLib4MirrorTransport.Singleton.ProcessConnectionRequest(request);
 			}
 			catch (Exception ex)
 			{

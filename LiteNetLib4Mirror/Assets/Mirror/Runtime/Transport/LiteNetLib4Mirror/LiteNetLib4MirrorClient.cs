@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using LiteNetLib;
+using LiteNetLib.Utils;
 using UnityEngine;
 
 namespace Mirror.LiteNetLib4Mirror
@@ -23,7 +24,7 @@ namespace Mirror.LiteNetLib4Mirror
 			return LiteNetLib4MirrorCore.State == LiteNetLib4MirrorCore.States.ClientConnected || LiteNetLib4MirrorCore.State == LiteNetLib4MirrorCore.States.ClientConnecting;
 		}
 
-		internal static void ConnectClient(string code)
+		internal static void ConnectClient(NetDataWriter data)
 		{
 			try
 			{
@@ -41,7 +42,7 @@ namespace Mirror.LiteNetLib4Mirror
 				LiteNetLib4MirrorCore.SetOptions(false);
 
 				LiteNetLib4MirrorCore.Host.Start();
-				LiteNetLib4MirrorCore.Host.Connect(LiteNetLib4MirrorUtils.Parse(LiteNetLib4MirrorTransport.Singleton.clientAddress, LiteNetLib4MirrorTransport.Singleton.port), code);
+				LiteNetLib4MirrorCore.Host.Connect(LiteNetLib4MirrorUtils.Parse(LiteNetLib4MirrorTransport.Singleton.clientAddress, LiteNetLib4MirrorTransport.Singleton.port), data);
 
 				LiteNetLib4MirrorTransport.Polling = true;
 				LiteNetLib4MirrorCore.State = LiteNetLib4MirrorCore.States.ClientConnecting;
@@ -62,13 +63,18 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static void OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectinfo)
 		{
-			if (disconnectinfo.AdditionalData.TryGetString(out string reason) && !string.IsNullOrWhiteSpace(reason))
+			switch (disconnectinfo.Reason)
 			{
-				LastDisconnectReason = LiteNetLib4MirrorUtils.FromBase64(reason);
-			}
-			else
-			{
-				LastDisconnectReason = null;
+				case DisconnectReason.ConnectionRejected:
+					LiteNetLib4MirrorTransport.Singleton.OnConncetionRefused(disconnectinfo);
+					LastDisconnectReason = null;
+					break;
+				case DisconnectReason.DisconnectPeerCalled when disconnectinfo.AdditionalData.TryGetString(out string reason) && !string.IsNullOrWhiteSpace(reason):
+					LastDisconnectReason = LiteNetLib4MirrorUtils.FromBase64(reason);
+					break;
+				default:
+					LastDisconnectReason = null;
+					break;
 			}
 			LiteNetLib4MirrorCore.State = LiteNetLib4MirrorCore.States.Idle;
 			LiteNetLib4MirrorCore.LastDisconnectError = disconnectinfo.SocketErrorCode;
