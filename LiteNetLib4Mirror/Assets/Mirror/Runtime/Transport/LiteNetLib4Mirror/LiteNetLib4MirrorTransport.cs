@@ -151,7 +151,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static string GetConnectKey()
 		{
-			return LiteNetLib4MirrorUtils.ToBase64(Application.productName + Application.companyName + Application.unityVersion + LiteNetLib4MirrorCore.TransportVersion + Singleton.authCode);
+			return LiteNetLib4MirrorUtils.ToBase64(LiteNetLib4MirrorUtils.SharedKey + Application.unityVersion + LiteNetLib4MirrorCore.TransportVersion + Singleton.authCode);
 		}
 
 		#region Unity Functions

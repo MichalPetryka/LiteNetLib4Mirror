@@ -73,7 +73,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static void OnDiscoveryResponse(IPEndPoint remoteendpoint, NetPacketReader reader, UnconnectedMessageType messagetype)
 		{
-			if (messagetype == UnconnectedMessageType.BasicMessage && reader.TryGetString(out string application) && application == Application.productName)
+			if (messagetype == UnconnectedMessageType.BasicMessage && reader.TryGetString(out string key) && key == LiteNetLib4MirrorUtils.SharedKey)
 			{
 				Singleton.onDiscoveryResponse.Invoke(remoteendpoint, LiteNetLib4MirrorUtils.FromBase64(reader.GetString()));
 			}
@@ -82,7 +82,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		internal static void OnDiscoveryRequest(IPEndPoint remoteendpoint, NetPacketReader reader, UnconnectedMessageType messagetype)
 		{
-			if (messagetype == UnconnectedMessageType.Broadcast && reader.TryGetString(out string application) && application == Application.productName && Singleton.ProcessDiscoveryRequest(remoteendpoint, LiteNetLib4MirrorUtils.FromBase64(reader.GetString()), out string response))
+			if (messagetype == UnconnectedMessageType.Broadcast && reader.TryGetString(out string key) && key == LiteNetLib4MirrorUtils.SharedKey && Singleton.ProcessDiscoveryRequest(remoteendpoint, LiteNetLib4MirrorUtils.FromBase64(reader.GetString()), out string response))
 			{
 				LiteNetLib4MirrorCore.Host.SendUnconnectedMessage(LiteNetLib4MirrorUtils.ReusePutDiscovery(DataWriter, response, ref _lastDiscoveryMessage), remoteendpoint);
 			}
