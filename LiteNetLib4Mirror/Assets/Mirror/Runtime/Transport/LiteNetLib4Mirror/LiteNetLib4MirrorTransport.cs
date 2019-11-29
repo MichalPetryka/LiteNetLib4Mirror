@@ -114,12 +114,14 @@ namespace Mirror.LiteNetLib4Mirror
 		public UnityEventError onClientSocketError;
 		public UnityEventIntError onServerSocketError;
 
+        protected internal static string ConnectKey { get; set; }
+
 		internal static bool Polling;
 		private static readonly NetDataWriter ConnectWriter = new NetDataWriter();
 		#region Overridable methods
 		protected internal virtual void GetConnectData(NetDataWriter writer)
 		{
-			writer.Put(GetConnectKey());
+			writer.Put(ConnectKey);
 		}
 
 		protected internal virtual void ProcessConnectionRequest(ConnectionRequest request)
@@ -134,6 +136,14 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 		}
 
+        /// <summary>
+        /// Override this in your code to set the key used for connection requests.
+        /// </summary>
+        protected internal virtual void SetConnectKey()
+        {
+            ConnectKey = LiteNetLib4MirrorUtils.ToBase64(Application.productName + Application.companyName + Application.unityVersion + LiteNetLib4MirrorCore.TransportVersion + Singleton.authCode);
+        }
+
 		protected internal virtual void OnConncetionRefused(DisconnectInfo disconnectinfo)
 		{
 
@@ -147,11 +157,8 @@ namespace Mirror.LiteNetLib4Mirror
 				Singleton = this;
 				LiteNetLib4MirrorCore.State = LiteNetLib4MirrorCore.States.Idle;
 			}
-		}
 
-		private static string GetConnectKey()
-		{
-			return LiteNetLib4MirrorUtils.ToBase64(LiteNetLib4MirrorUtils.SharedKey + Application.unityVersion + LiteNetLib4MirrorCore.TransportVersion + Singleton.authCode);
+            SetConnectKey();
 		}
 
 		#region Unity Functions
@@ -219,7 +226,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public override void ServerStart()
 		{
-			LiteNetLib4MirrorServer.StartServer(GetConnectKey());
+			LiteNetLib4MirrorServer.StartServer(ConnectKey);
 		}
 
 		public override bool ServerSend(List<int> connectionIds, int channelId, ArraySegment<byte> data)

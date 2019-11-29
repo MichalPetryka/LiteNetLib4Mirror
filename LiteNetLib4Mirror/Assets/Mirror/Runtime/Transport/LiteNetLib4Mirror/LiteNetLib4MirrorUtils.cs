@@ -19,13 +19,13 @@ namespace Mirror.LiteNetLib4Mirror
 	public static class LiteNetLib4MirrorUtils
 	{
 		internal static ushort LastForwardedPort;
-		public static string SharedKey { get; set; }
+		internal static readonly string ApplicationName;
 		public static bool UpnpFailed { get; private set; }
 		public static IPAddress ExternalIp { get; private set; }
 
 		static LiteNetLib4MirrorUtils()
 		{
-			SharedKey = Application.productName + Application.companyName;
+			ApplicationName = Application.productName;
 		}
 
 		public static string ToBase64(string text)
@@ -52,11 +52,11 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public static NetDataWriter ReusePutDiscovery(NetDataWriter writer, string text, ref string lastText)
 		{
-			if (SharedKey + text != lastText)
+			if (LiteNetLib4MirrorDiscovery.DiscoveryKey + text != lastText)
 			{
-				lastText = SharedKey + text;
+				lastText = LiteNetLib4MirrorDiscovery.DiscoveryKey + text;
 				writer.Reset();
-				writer.Put(SharedKey);
+				writer.Put(LiteNetLib4MirrorDiscovery.DiscoveryKey);
 				writer.Put(ToBase64(text));
 			}
 
@@ -155,7 +155,7 @@ namespace Mirror.LiteNetLib4Mirror
 				}
 
 				ExternalIp = await device.GetExternalIPAsync();
-				await device.CreatePortMapAsync(new Mapping(networkProtocolType, IPAddress.None, port, port, 0, Application.productName)).ConfigureAwait(false);
+				await device.CreatePortMapAsync(new Mapping(networkProtocolType, IPAddress.None, port, port, 0, ApplicationName)).ConfigureAwait(false);
 				LastForwardedPort = port;
 				Debug.Log($"Port {port.ToString()} forwarded successfully!");
 			}
