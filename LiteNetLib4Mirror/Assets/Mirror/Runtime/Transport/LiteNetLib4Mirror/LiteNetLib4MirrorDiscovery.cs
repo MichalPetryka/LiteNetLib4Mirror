@@ -11,9 +11,11 @@ namespace Mirror.LiteNetLib4Mirror
 		public UnityEventIpEndpointString onDiscoveryResponse;
 		public ushort[] ports = {7777};
 		private static readonly NetDataWriter DataWriter = new NetDataWriter();
+		public static string DiscoveryKey { get; protected set; }
 		public static LiteNetLib4MirrorDiscovery Singleton { get; protected set; }
 		private static string _lastDiscoveryMessage;
 
+		#region Overridable methods
 		protected virtual void Awake()
 		{
 			if (Singleton == null)
@@ -21,6 +23,8 @@ namespace Mirror.LiteNetLib4Mirror
 				GetComponent<LiteNetLib4MirrorTransport>().InitializeTransport();
 				Singleton = this;
 			}
+
+			SetDiscoveryKey();
 		}
 
 		/// <summary>
@@ -31,6 +35,15 @@ namespace Mirror.LiteNetLib4Mirror
 			response = "LiteNetLib4Mirror Discovery accepted";
 			return true;
 		}
+		
+		/// <summary>
+		/// Override this in your code to set the key used for discovery requests.
+		/// </summary>
+		protected virtual void SetDiscoveryKey()
+		{
+			DiscoveryKey = LiteNetLib4MirrorUtils.ApplicationName;
+		}
+		#endregion
 
 		public static void InitializeFinder()
 		{
@@ -73,7 +86,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		private static void OnDiscoveryResponse(IPEndPoint remoteendpoint, NetPacketReader reader, UnconnectedMessageType messagetype)
 		{
-			if (messagetype == UnconnectedMessageType.BasicMessage && reader.TryGetString(out string application) && application == Application.productName)
+			if (messagetype == UnconnectedMessageType.BasicMessage && reader.TryGetString(out string key) && key == DiscoveryKey)
 			{
 				Singleton.onDiscoveryResponse.Invoke(remoteendpoint, LiteNetLib4MirrorUtils.FromBase64(reader.GetString()));
 			}
@@ -82,7 +95,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		internal static void OnDiscoveryRequest(IPEndPoint remoteendpoint, NetPacketReader reader, UnconnectedMessageType messagetype)
 		{
-			if (messagetype == UnconnectedMessageType.Broadcast && reader.TryGetString(out string application) && application == Application.productName && Singleton.ProcessDiscoveryRequest(remoteendpoint, LiteNetLib4MirrorUtils.FromBase64(reader.GetString()), out string response))
+			if (messagetype == UnconnectedMessageType.Broadcast && reader.TryGetString(out string key) && key == DiscoveryKey && Singleton.ProcessDiscoveryRequest(remoteendpoint, LiteNetLib4MirrorUtils.FromBase64(reader.GetString()), out string response))
 			{
 				LiteNetLib4MirrorCore.Host.SendUnconnectedMessage(LiteNetLib4MirrorUtils.ReusePutDiscovery(DataWriter, response, ref _lastDiscoveryMessage), remoteendpoint);
 			}

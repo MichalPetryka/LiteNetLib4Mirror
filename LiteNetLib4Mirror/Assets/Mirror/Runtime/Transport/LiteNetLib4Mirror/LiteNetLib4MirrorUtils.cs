@@ -52,11 +52,11 @@ namespace Mirror.LiteNetLib4Mirror
 
 		public static NetDataWriter ReusePutDiscovery(NetDataWriter writer, string text, ref string lastText)
 		{
-			if (ApplicationName + text != lastText)
+			if (LiteNetLib4MirrorDiscovery.DiscoveryKey + text != lastText)
 			{
-				lastText = ApplicationName + text;
+				lastText = LiteNetLib4MirrorDiscovery.DiscoveryKey + text;
 				writer.Reset();
-				writer.Put(ApplicationName);
+				writer.Put(LiteNetLib4MirrorDiscovery.DiscoveryKey);
 				writer.Put(ToBase64(text));
 			}
 
