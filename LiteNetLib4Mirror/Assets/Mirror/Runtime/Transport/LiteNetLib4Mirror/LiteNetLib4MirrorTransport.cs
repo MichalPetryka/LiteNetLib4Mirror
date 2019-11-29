@@ -114,7 +114,7 @@ namespace Mirror.LiteNetLib4Mirror
 		public UnityEventError onClientSocketError;
 		public UnityEventIntError onServerSocketError;
 
-        protected internal static string ConnectKey { get; set; }
+		protected internal static string ConnectKey { get; set; }
 
 		internal static bool Polling;
 		private static readonly NetDataWriter ConnectWriter = new NetDataWriter();
@@ -136,13 +136,13 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 		}
 
-        /// <summary>
-        /// Override this in your code to set the key used for connection requests.
-        /// </summary>
-        protected internal virtual void SetConnectKey()
-        {
-            ConnectKey = LiteNetLib4MirrorUtils.ToBase64(Application.productName + Application.companyName + Application.unityVersion + LiteNetLib4MirrorCore.TransportVersion + Singleton.authCode);
-        }
+		/// <summary>
+		/// Override this in your code to set the key used for connection requests.
+		/// </summary>
+		protected internal virtual void SetConnectKey()
+		{
+			ConnectKey = LiteNetLib4MirrorUtils.ToBase64(Application.productName + Application.companyName + Application.unityVersion + LiteNetLib4MirrorCore.TransportVersion + Singleton.authCode);
+		}
 
 		protected internal virtual void OnConncetionRefused(DisconnectInfo disconnectinfo)
 		{
@@ -158,7 +158,7 @@ namespace Mirror.LiteNetLib4Mirror
 				LiteNetLib4MirrorCore.State = LiteNetLib4MirrorCore.States.Idle;
 			}
 
-            SetConnectKey();
+			SetConnectKey();
 		}
 
 		#region Unity Functions
