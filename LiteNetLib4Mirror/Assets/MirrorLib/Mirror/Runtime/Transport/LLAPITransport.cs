@@ -18,6 +18,8 @@ namespace Mirror
     [EditorBrowsable(EditorBrowsableState.Never), Obsolete("LLAPI is obsolete and will be removed from future versions of Unity")]
     public class LLAPITransport : Transport
     {
+        public const string Scheme = "unet";
+
         public ushort port = 7777;
 
         [Tooltip("Enable for WebGL games. Can only do either WebSockets or regular Sockets, not both (yet).")]
@@ -98,13 +100,21 @@ namespace Mirror
             serverSendBuffer = new byte[globalConfig.MaxPacketSize];
         }
 
+        public override bool Available()
+        {
+            // LLAPI runs on all platforms, including webgl
+            return true;
+        }
+
         #region client
         public override bool ClientConnected()
         {
             return clientConnectionId != -1;
         }
 
-        public override void ClientConnect(string address)
+
+
+        void ClientConnect(string address, int port)
         {
             // LLAPI can't handle 'localhost'
             if (address.ToLower() == "localhost") address = "127.0.0.1";
@@ -123,6 +133,21 @@ namespace Mirror
                 Debug.LogWarning("NetworkTransport.Connect failed: clientId=" + clientId + " address= " + address + " port=" + port + " error=" + error);
                 clientConnectionId = -1;
             }
+        }
+
+        public override void ClientConnect(string address)
+        {
+            ClientConnect(address, port);
+        }
+
+        public override void ClientConnect(Uri uri)
+        {
+            if (uri.Scheme != Scheme)
+                throw new ArgumentException($"Invalid url {uri}, use {Scheme}://host:port instead", nameof(uri));
+
+            int serverPort = uri.IsDefaultPort ? port : uri.Port;
+
+            ClientConnect(uri.Host, serverPort);
         }
 
         public override bool ClientSend(int channelId, ArraySegment<byte> segment)
@@ -316,14 +341,8 @@ namespace Mirror
         public void LateUpdate()
         {
             // process all messages
-            while (ProcessClientMessage()) {}
-            while (ProcessServerMessage()) {}
-        }
-
-        public override bool Available()
-        {
-            // websocket is available in all platforms (including webgl)
-            return useWebsockets || base.Available();
+            while (ProcessClientMessage()) { }
+            while (ProcessServerMessage()) { }
         }
 
         public override void Shutdown()

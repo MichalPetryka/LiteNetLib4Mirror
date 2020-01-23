@@ -106,8 +106,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   serverOnly: 0
-  localPlayerAuthority: 0
-  m_AssetId: f6d08eb9a8e35d84fa30a7e3ae64181a
+  m_AssetId: 
   m_SceneId: 0
 --- !u!114 &855244094988030908
 MonoBehaviour:
@@ -129,4 +128,4 @@ MonoBehaviour:
   forceHidden: 0
   castLayers:
     serializedVersion: 2
-    m_Bits: 512
+    m_Bits: 256
