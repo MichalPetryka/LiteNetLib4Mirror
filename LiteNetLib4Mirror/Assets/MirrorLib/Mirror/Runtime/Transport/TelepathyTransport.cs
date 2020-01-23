@@ -11,6 +11,10 @@ namespace Mirror
     [HelpURL("https://github.com/vis2k/Telepathy/blob/master/README.md")]
     public class TelepathyTransport : Transport
     {
+        // scheme used by this transport
+        // "tcp4" means tcp with 4 bytes header, network byte order
+        public const string Scheme = "tcp4";
+
         public ushort port = 7777;
 
         [Tooltip("Nagle Algorithm can be disabled by enabling NoDelay")]
@@ -48,9 +52,23 @@ namespace Mirror
             Debug.Log("TelepathyTransport initialized!");
         }
 
+        public override bool Available()
+        {
+            // C#'s built in TCP sockets run everywhere except on WebGL
+            return Application.platform != RuntimePlatform.WebGLPlayer;
+        }
+
         // client
         public override bool ClientConnected() => client.Connected;
         public override void ClientConnect(string address) => client.Connect(address, port);
+        public override void ClientConnect(Uri uri)
+        {
+            if (uri.Scheme != Scheme)
+                throw new ArgumentException($"Invalid url {uri}, use {Scheme}://host:port instead", nameof(uri));
+
+            int serverPort = uri.IsDefaultPort ? port : uri.Port;
+            client.Connect(uri.Host, serverPort);
+        }
         public override bool ClientSend(int channelId, ArraySegment<byte> segment)
         {
             // telepathy doesn't support allocation-free sends yet.
@@ -97,8 +115,8 @@ namespace Mirror
             // note: we need to check enabled in case we set it to false
             // when LateUpdate already started.
             // (https://github.com/vis2k/Mirror/pull/379)
-            while (enabled && ProcessClientMessage()) {}
-            while (enabled && ProcessServerMessage()) {}
+            while (enabled && ProcessClientMessage()) { }
+            while (enabled && ProcessServerMessage()) { }
         }
 
         // server

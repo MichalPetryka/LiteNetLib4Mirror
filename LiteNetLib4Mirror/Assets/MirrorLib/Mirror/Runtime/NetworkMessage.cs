@@ -2,6 +2,7 @@ namespace Mirror
 {
     public struct NetworkMessage
     {
+        public int msgType;
         public NetworkConnection conn;
         public NetworkReader reader;
         public int channelId;

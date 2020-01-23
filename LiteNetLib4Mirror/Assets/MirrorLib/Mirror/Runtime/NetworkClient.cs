@@ -39,7 +39,7 @@ namespace Mirror
         /// <summary>
         /// The registered network message handlers.
         /// </summary>
-        public static readonly Dictionary<int, NetworkMessageDelegate> handlers = new Dictionary<int, NetworkMessageDelegate>();
+        static readonly Dictionary<int, NetworkMessageDelegate> handlers = new Dictionary<int, NetworkMessageDelegate>();
 
         /// <summary>
         /// The NetworkConnection object this client is using.
@@ -70,11 +70,6 @@ namespace Mirror
         /// </summary>
         public static bool isLocalClient => connection is ULocalConnectionToServer;
 
-        // local client in host mode might call Cmds/Rpcs during Update, but we
-        // want to apply them in LateUpdate like all other Transport messages
-        // to avoid race conditions. keep packets in Queue until LateUpdate.
-        internal static Queue<NetworkWriter> localClientPacketQueue = new Queue<NetworkWriter>();
-
         /// <summary>
         /// Connect client to a NetworkServer instance.
         /// </summary>
@@ -91,48 +86,57 @@ namespace Mirror
             Transport.activeTransport.ClientConnect(address);
 
             // setup all the handlers
-            connection = new NetworkConnection(address, 0);
+            connection = new NetworkConnectionToServer();
             connection.SetHandlers(handlers);
         }
 
         /// <summary>
-        /// connect host mode
+        /// Connect client to a NetworkServer instance.
         /// </summary>
-        internal static void ConnectLocalServer()
+        /// <param name="uri">Address of the server to connect to</param>
+        public static void Connect(Uri uri)
         {
-            if (LogFilter.Debug) Debug.Log("Client Connect Local Server");
+            if (LogFilter.Debug) Debug.Log("Client Connect: " + uri);
+
+            RegisterSystemHandlers(false);
+            Transport.activeTransport.enabled = true;
+            InitializeTransportHandlers();
+
+            connectState = ConnectState.Connecting;
+            Transport.activeTransport.ClientConnect(uri);
+
+            // setup all the handlers
+            connection = new NetworkConnectionToServer();
+            connection.SetHandlers(handlers);
+        }
+
+        internal static void ConnectHost()
+        {
+            if (LogFilter.Debug) Debug.Log("Client Connect Host to Server");
 
             RegisterSystemHandlers(true);
 
             connectState = ConnectState.Connected;
 
-            // create local connection to server
-            connection = new ULocalConnectionToServer();
+            // create local connection objects and connect them
+            ULocalConnectionToServer connectionToServer = new ULocalConnectionToServer();
+            ULocalConnectionToClient connectionToClient = new ULocalConnectionToClient();
+            connectionToServer.connectionToClient = connectionToClient;
+            connectionToClient.connectionToServer = connectionToServer;
+
+            connection = connectionToServer;
             connection.SetHandlers(handlers);
 
             // create server connection to local client
-            ULocalConnectionToClient connectionToClient = new ULocalConnectionToClient();
             NetworkServer.SetLocalConnection(connectionToClient);
-            connectionToClient.Send(new ConnectMessage());
         }
-
         /// <summary>
-        /// Called by the server to set the LocalClient's LocalPlayer object during NetworkServer.AddPlayer()
+        /// connect host mode
         /// </summary>
-        /// <param name="localPlayer"></param>
-        internal static void AddLocalPlayer(NetworkIdentity localPlayer)
+        internal static void ConnectLocalServer()
         {
-            if (LogFilter.Debug) Debug.Log("Local client AddLocalPlayer " + localPlayer.gameObject.name + " conn=" + connection.connectionId);
-            connection.isReady = true;
-            connection.identity = localPlayer;
-            if (localPlayer != null)
-            {
-                localPlayer.isClient = true;
-                NetworkIdentity.spawned[localPlayer.netId] = localPlayer;
-                localPlayer.connectionToServer = connection;
-            }
-            // there is no SystemOwnerMessage for local client. add to ClientScene here instead
-            ClientScene.InternalAddPlayer(localPlayer);
+            NetworkServer.OnConnected(NetworkServer.localConnection);
+            NetworkServer.localConnection.Send(new ConnectMessage());
         }
 
         static void InitializeTransportHandlers()
@@ -266,19 +270,12 @@ namespace Mirror
 
         internal static void Update()
         {
-            // local or remote connection?
-            if (isLocalClient)
+            // local connection?
+            if (connection is ULocalConnectionToServer localConnection)
             {
-                // process internal messages so they are applied at the correct time
-                while (localClientPacketQueue.Count > 0)
-                {
-                    NetworkWriter writer = localClientPacketQueue.Dequeue();
-                    // TODO avoid serializing and deserializng the message
-                    // just pass it as is
-                    OnDataReceived(writer.ToArraySegment(), Channels.DefaultReliable);
-                    NetworkWriterPool.Recycle(writer);
-                }
+                localConnection.Update();
             }
+            // remote connection?
             else
             {
                 // only update things while connected
@@ -344,18 +341,17 @@ namespace Mirror
             return (float)NetworkTime.rtt;
         }
 
-        internal static void RegisterSystemHandlers(bool localClient)
+        internal static void RegisterSystemHandlers(bool hostMode)
         {
-            // local client / regular client react to some messages differently.
+            // host mode client / regular client react to some messages differently.
             // but we still need to add handlers for all of them to avoid
             // 'message id not found' errors.
-            if (localClient)
+            if (hostMode)
             {
-                RegisterHandler<ObjectDestroyMessage>(ClientScene.OnLocalClientObjectDestroy);
-                RegisterHandler<ObjectHideMessage>(ClientScene.OnLocalClientObjectHide);
+                RegisterHandler<ObjectDestroyMessage>(ClientScene.OnHostClientObjectDestroy);
+                RegisterHandler<ObjectHideMessage>(ClientScene.OnHostClientObjectHide);
                 RegisterHandler<NetworkPongMessage>((conn, msg) => { }, false);
-                RegisterHandler<SpawnPrefabMessage>(ClientScene.OnLocalClientSpawnPrefab);
-                RegisterHandler<SpawnSceneObjectMessage>(ClientScene.OnLocalClientSpawnSceneObject);
+                RegisterHandler<SpawnMessage>(ClientScene.OnHostClientSpawn);
                 RegisterHandler<ObjectSpawnStartedMessage>((conn, msg) => { }); // host mode doesn't need spawning
                 RegisterHandler<ObjectSpawnFinishedMessage>((conn, msg) => { }); // host mode doesn't need spawning
                 RegisterHandler<UpdateVarsMessage>((conn, msg) => { });
@@ -365,19 +361,17 @@ namespace Mirror
                 RegisterHandler<ObjectDestroyMessage>(ClientScene.OnObjectDestroy);
                 RegisterHandler<ObjectHideMessage>(ClientScene.OnObjectHide);
                 RegisterHandler<NetworkPongMessage>(NetworkTime.OnClientPong, false);
-                RegisterHandler<SpawnPrefabMessage>(ClientScene.OnSpawnPrefab);
-                RegisterHandler<SpawnSceneObjectMessage>(ClientScene.OnSpawnSceneObject);
+                RegisterHandler<SpawnMessage>(ClientScene.OnSpawn);
                 RegisterHandler<ObjectSpawnStartedMessage>(ClientScene.OnObjectSpawnStarted);
                 RegisterHandler<ObjectSpawnFinishedMessage>(ClientScene.OnObjectSpawnFinished);
                 RegisterHandler<UpdateVarsMessage>(ClientScene.OnUpdateVarsMessage);
             }
-            RegisterHandler<ClientAuthorityMessage>(ClientScene.OnClientAuthority);
             RegisterHandler<RpcMessage>(ClientScene.OnRPCMessage);
             RegisterHandler<SyncEventMessage>(ClientScene.OnSyncEventMessage);
         }
 
         /// <summary>
-        /// Obsolete: Use <see cref="RegisterHandler{T}"/> instead
+        /// Obsolete: Use <see cref="RegisterHandler{T}(Action{NetworkConnection, T}, bool)"/> instead
         /// </summary>
         [EditorBrowsable(EditorBrowsableState.Never), Obsolete("Use RegisterHandler<T> instead")]
         public static void RegisterHandler(int msgType, NetworkMessageDelegate handler)
@@ -390,7 +384,7 @@ namespace Mirror
         }
 
         /// <summary>
-        /// Obsolete: Use <see cref="RegisterHandler{T}"/> instead
+        /// Obsolete: Use <see cref="RegisterHandler{T}(Action{NetworkConnection, T}, bool)"/> instead
         /// </summary>
         [EditorBrowsable(EditorBrowsableState.Never), Obsolete("Use RegisterHandler<T> instead")]
         public static void RegisterHandler(MsgType msgType, NetworkMessageDelegate handler)
@@ -413,6 +407,18 @@ namespace Mirror
                 if (LogFilter.Debug) Debug.Log("NetworkClient.RegisterHandler replacing " + handler + " - " + msgType);
             }
             handlers[msgType] = MessagePacker.MessageHandler<T>(handler, requireAuthentication);
+        }
+
+        /// <summary>
+        /// Register a handler for a particular message type.
+        /// <para>There are several system message types which you can add handlers for. You can also add your own message types.</para>
+        /// </summary>
+        /// <typeparam name="T">The message type to unregister.</typeparam>
+        /// <param name="handler"></param>
+        /// <param name="requireAuthentication">true if the message requires an authenticated connection</param>
+        public static void RegisterHandler<T>(Action<T> handler, bool requireAuthentication = true) where T : IMessageBase, new()
+        {
+            RegisterHandler((NetworkConnection _, T value) => { handler(value); }, requireAuthentication);
         }
 
         /// <summary>
@@ -454,6 +460,11 @@ namespace Mirror
             ClientScene.Shutdown();
             connectState = ConnectState.None;
             handlers.Clear();
+            // disconnect the client connection.
+            // we do NOT call Transport.Shutdown, because someone only called
+            // NetworkClient.Shutdown. we can't assume that the server is
+            // supposed to be shut down too!
+            Transport.activeTransport.ClientDisconnect();
         }
 
         /// <summary>

@@ -22,7 +22,6 @@ namespace Mirror
 
         static double lastPingTime;
 
-
         // Date and time when the application started
         static readonly Stopwatch stopwatch = new Stopwatch();
 
@@ -81,7 +80,7 @@ namespace Mirror
         // Executed at the client when we receive a Pong message
         // find out how long it took since we sent the Ping
         // and update time offset
-        internal static void OnClientPong(NetworkConnection _, NetworkPongMessage msg)
+        internal static void OnClientPong(NetworkPongMessage msg)
         {
             double now = LocalTime();
 

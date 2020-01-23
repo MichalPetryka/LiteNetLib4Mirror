@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -183,7 +181,8 @@ namespace Ninja.WebSockets
                 return _ms.ReadByte();
             }
 
-            public override int ReadTimeout {
+            public override int ReadTimeout
+            {
                 get { return _ms.ReadTimeout; }
                 set { _ms.ReadTimeout = value; }
             }

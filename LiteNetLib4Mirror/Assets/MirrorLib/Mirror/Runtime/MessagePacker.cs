@@ -59,8 +59,11 @@ namespace Mirror
         //    and do an allocation free send before recycling it.
         public static void Pack<T>(T message, NetworkWriter writer) where T : IMessageBase
         {
-            // write message type
-            int msgType = GetId(typeof(T));
+            // if it is a value type,  just use typeof(T) to avoid boxing
+            // this works because value types cannot be derived
+            // if it is a reference type (for example IMessageBase),
+            // ask the message for the real type
+            int msgType = GetId(typeof(T).IsValueType ? typeof(T) : message.GetType());
             writer.WriteUInt16((ushort)msgType);
 
             // serialize message into writer
@@ -86,7 +89,7 @@ namespace Mirror
         // unpack a message we received
         public static T Unpack<T>(byte[] data) where T : IMessageBase, new()
         {
-            NetworkReader reader = NetworkReaderPool.GetReader(data);
+            NetworkReader reader = new NetworkReader(data);
 
             int msgType = GetId<T>();
 
@@ -94,9 +97,8 @@ namespace Mirror
             if (id != msgType)
                 throw new FormatException("Invalid message,  could not unpack " + typeof(T).FullName);
 
-            T message = typeof(T).IsValueType ? default : new T();
+            T message = new T();
             message.Deserialize(reader);
-            NetworkReaderPool.Recycle(reader);
             return message;
         }
 
@@ -139,7 +141,7 @@ namespace Mirror
                 if (requireAuthenication && !networkMessage.conn.isAuthenticated)
                 {
                     // message requires authentication, but the connection was not authenticated
-                    Debug.LogWarning($"Closing connection: {networkMessage.conn.connectionId}. Received message {typeof(T)} that required authentication, but the user has not authenticated yet");
+                    Debug.LogWarning($"Closing connection: {networkMessage.conn}. Received message {typeof(T)} that required authentication, but the user has not authenticated yet");
                     networkMessage.conn.Disconnect();
                     return;
                 }
@@ -148,7 +150,7 @@ namespace Mirror
             }
             catch (Exception exception)
             {
-                Debug.LogError("Closed connection: " + networkMessage.conn.connectionId + ". This can happen if the other side accidentally (or an attacker intentionally) sent invalid data. Reason: " + exception);
+                Debug.LogError("Closed connection: " + networkMessage.conn + ". This can happen if the other side accidentally (or an attacker intentionally) sent invalid data. Reason: " + exception);
                 networkMessage.conn.Disconnect();
                 return;
             }
