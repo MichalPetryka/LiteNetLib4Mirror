@@ -52,3 +52,5 @@ LiteNetLib4Mirror/sysinfo.txt
 # Crashlytics generated file
 LiteNetLib4Mirror/crashlytics-build.properties
 /.vs/slnx.sqlite
+*.sqlite-journal
+*.sqlite~Stashed changes
