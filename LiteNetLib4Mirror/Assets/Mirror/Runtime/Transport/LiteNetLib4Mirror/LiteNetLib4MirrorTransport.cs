@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using LiteNetLib4Mirror.Open.Nat;
@@ -180,6 +181,30 @@ namespace Mirror.LiteNetLib4Mirror
 		#endregion
 
 		#region Transport Overrides
+		public const string Scheme = "litenet";
+
+		public override Uri ServerUri()
+		{
+			UriBuilder builder = new UriBuilder();
+			builder.Scheme = Scheme;
+			builder.Host = Dns.GetHostName();
+			builder.Port = port;
+			return builder.Uri;
+		}
+
+		public override void ClientConnect(Uri uri)
+		{
+			if (uri.Scheme != Scheme)
+				throw new ArgumentException($"Invalid url {uri}, use {Scheme}://host:port instead", nameof(uri));
+
+			port = uri.IsDefaultPort ? port : (ushort)uri.Port;
+			clientAddress = uri.Host;
+
+			ConnectWriter.Reset();
+			GetConnectData(ConnectWriter);
+			LiteNetLib4MirrorClient.ConnectClient(ConnectWriter);
+		}
+
 		public override bool Available()
 		{
 			return Application.platform != RuntimePlatform.WebGLPlayer;
