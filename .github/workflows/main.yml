@@ -20,7 +20,25 @@ jobs:
     steps:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
+
+    - name: Setup .NET Core SDK
+      uses: actions/setup-dotnet@v1.4.0
+      with:
+        # SDK version to use. Example: 2.2.104
+        dotnet-version: '3.1.100'
+
+    - name: install unity packer
+      run: dotnet tool install -g unity-packer
+
+    - name: Create Package
+      run: unity-packer pack LiteNetLib4Mirror.unitypackage Assets/Mirror/Runtime/Transport Assets/Mirror/Runtime/Transport
       
+    - name: Upload Package
+      uses: actions/upload-artifact@v1
+      with:
+        name: LiteNetLib4Mirror.unitypackage
+        path: LiteNetLib4Mirror.unitypackage
+
     - name: Action For Semantic Release
       uses: cycjimmy/semantic-release-action@v2.3.0
       with:
@@ -29,12 +47,3 @@ jobs:
       env: 
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # Runs a single command using the runners shell
-    - name: Run a one-line script
-      run: echo Hello, world!
-
-    # Runs a set of commands using the runners shell
-    - name: Run a multi-line script
-      run: |
-        echo Add other actions to build,
-        echo test, and deploy your project.
