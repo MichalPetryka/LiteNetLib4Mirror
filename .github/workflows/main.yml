@@ -20,6 +20,14 @@ jobs:
     steps:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
+      
+    - name: Action For Semantic Release
+      uses: cycjimmy/semantic-release-action@v2.3.0
+      with:
+        # The branch on which releases should happen. It will override the branch attribute in your configuration file. If the attribute is not configured on both sides, the default is master. Support for semantic-release older than v16.
+        branch: master
+      env: 
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     # Runs a single command using the runners shell
     - name: Run a one-line script
