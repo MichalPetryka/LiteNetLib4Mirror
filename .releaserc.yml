@@ -1,0 +1,11 @@
+{
+    verifyConditions: ["@semantic-release/github"],
+    publish: [        
+        {
+            "path": "@semantic-release/github",
+            "assets": [
+                {"path": "LiteNetLib4Mirror.unitypackage", "label": "LiteNetLib4Mirror Unity Package", "name": "LiteNetLib4Mirror-${nextRelease.version}.unitypackage"}
+            ]
+        }
+    ]
+}
