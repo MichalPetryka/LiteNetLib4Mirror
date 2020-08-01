@@ -212,6 +212,16 @@ namespace Mirror.LiteNetLib4Mirror
 			}
 		}
 
+		public override Uri ServerUri()
+		{
+			UriBuilder builder = new UriBuilder
+			{
+				Host = ipv6Enabled ? serverIPv6BindAddress : serverIPv4BindAddress,
+				Port = port
+			};
+			return builder.Uri;
+		}
+
 		public override bool ServerActive()
 		{
 			return LiteNetLib4MirrorServer.IsActive();

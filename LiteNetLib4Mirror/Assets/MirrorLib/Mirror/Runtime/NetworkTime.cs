@@ -9,6 +9,8 @@ namespace Mirror
     /// </summary>
     public static class NetworkTime
     {
+        static readonly ILogger logger = LogFactory.GetLogger(typeof(NetworkTime));
+
         /// <summary>
         /// how often are we sending ping messages
         /// used to calculate network time and RTT
@@ -21,7 +23,6 @@ namespace Mirror
         public static int PingWindowSize = 10;
 
         static double lastPingTime;
-
 
         // Date and time when the application started
         static readonly Stopwatch stopwatch = new Stopwatch();
@@ -67,7 +68,7 @@ namespace Mirror
         // and time from the server
         internal static void OnServerPing(NetworkConnection conn, NetworkPingMessage msg)
         {
-            if (LogFilter.Debug) Debug.Log("OnPingServerMessage  conn=" + conn);
+            if (logger.LogEnabled()) logger.Log("OnPingServerMessage  conn=" + conn);
 
             NetworkPongMessage pongMsg = new NetworkPongMessage
             {
@@ -81,7 +82,7 @@ namespace Mirror
         // Executed at the client when we receive a Pong message
         // find out how long it took since we sent the Ping
         // and update time offset
-        internal static void OnClientPong(NetworkConnection _, NetworkPongMessage msg)
+        internal static void OnClientPong(NetworkPongMessage msg)
         {
             double now = LocalTime();
 

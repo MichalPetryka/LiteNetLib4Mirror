@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Net.WebSockets;
@@ -92,7 +91,7 @@ namespace Mirror.Websocket
                 cancellation = new CancellationTokenSource();
 
                 listener = TcpListener.Create(port);
-                listener.Server.NoDelay = this.NoDelay;
+                listener.Server.NoDelay = NoDelay;
                 listener.Start();
                 Debug.Log($"Websocket server started listening on port {port}");
                 while (true)
@@ -132,7 +131,8 @@ namespace Mirror.Websocket
                 WebSocketHttpContext context = await webSocketServerFactory.ReadHttpHeaderFromStreamAsync(tcpClient, stream, token);
                 if (context.IsWebSocketRequest)
                 {
-                    WebSocketServerOptions options = new WebSocketServerOptions() { KeepAliveInterval = TimeSpan.FromSeconds(30), SubProtocol = "binary" };
+                    // Force KeepAliveInterval to Zero, otherwise the transport is unstable and causes random disconnects.
+                    WebSocketServerOptions options = new WebSocketServerOptions() { KeepAliveInterval = TimeSpan.Zero, SubProtocol = "binary" };
 
                     WebSocket webSocket = await webSocketServerFactory.AcceptWebSocketAsync(context, options);
 
@@ -144,7 +144,7 @@ namespace Mirror.Websocket
                 }
 
             }
-            catch(IOException)
+            catch (IOException)
             {
                 // do nothing. This will be thrown if the transport is closed
             }
@@ -178,6 +178,8 @@ namespace Mirror.Websocket
             return true;
         }
 
+        public bool enabled;
+
         async Task ReceiveLoopAsync(WebSocket webSocket, CancellationToken token)
         {
             int connectionId = NextConnectionId();
@@ -190,10 +192,14 @@ namespace Mirror.Websocket
                 // someone connected,  raise event
                 Connected?.Invoke(connectionId);
 
-
                 while (true)
                 {
                     WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), token);
+
+                    if (!enabled)
+                    {
+                        await WaitForEnabledAsync();
+                    }
 
                     if (result.MessageType == WebSocketMessageType.Close)
                     {
@@ -229,6 +235,14 @@ namespace Mirror.Websocket
             }
         }
 
+        async Task WaitForEnabledAsync()
+        {
+            while (!enabled)
+            {
+                await Task.Delay(10);
+            }
+        }
+
         // a message might come splitted in multiple frames
         // collect all frames
         async Task<ArraySegment<byte>> ReadFrames(int connectionId, WebSocketReceiveResult result, WebSocket webSocket, byte[] buffer, CancellationToken token)
@@ -255,7 +269,8 @@ namespace Mirror.Websocket
         public void Stop()
         {
             // only if started
-            if (!Active) return;
+            if (!Active)
+                return;
 
             Debug.Log("Server: stopping...");
             cancellation.Cancel();
@@ -279,7 +294,8 @@ namespace Mirror.Websocket
                 {
                     await client.SendAsync(segment, WebSocketMessageType.Binary, true, cancellation.Token);
                 }
-                catch (ObjectDisposedException) {
+                catch (ObjectDisposedException)
+                {
                     // connection has been closed,  swallow exception
                     Disconnect(connectionId);
                 }

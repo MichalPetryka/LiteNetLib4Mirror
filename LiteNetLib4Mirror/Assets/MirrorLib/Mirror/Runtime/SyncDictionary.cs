@@ -1,15 +1,16 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using JetBrains.Annotations;
 
 namespace Mirror
 {
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public abstract class SyncDictionary<TKey, TValue> : IDictionary<TKey, TValue>, SyncObject
+    public abstract class SyncIDictionary<TKey, TValue> : IDictionary<TKey, TValue>, SyncObject, IReadOnlyDictionary<TKey, TValue>
     {
         public delegate void SyncDictionaryChanged(Operation op, TKey key, TValue item);
 
-        readonly IDictionary<TKey, TValue> objects;
+        protected readonly IDictionary<TKey, TValue> objects;
 
         public int Count => objects.Count;
         public bool IsReadOnly { get; private set; }
@@ -20,8 +21,7 @@ namespace Mirror
             OP_ADD,
             OP_CLEAR,
             OP_REMOVE,
-            OP_SET,
-            OP_DIRTY
+            OP_SET
         }
 
         struct Change
@@ -38,6 +38,14 @@ namespace Mirror
         // so we need to skip them
         int changesAhead;
 
+        public void Reset()
+        {
+            IsReadOnly = false;
+            changes.Clear();
+            changesAhead = 0;
+            objects.Clear();
+        }
+
         protected virtual void SerializeKey(NetworkWriter writer, TKey item) { }
         protected virtual void SerializeItem(NetworkWriter writer, TValue item) { }
         protected virtual TKey DeserializeKey(NetworkReader reader) => default;
@@ -49,21 +57,15 @@ namespace Mirror
 
         public ICollection<TValue> Values => objects.Values;
 
+        IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue>.Keys => objects.Keys;
+
+        IEnumerable<TValue> IReadOnlyDictionary<TKey, TValue>.Values => objects.Values;
+
         // throw away all the changes
         // this should be called after a successfull sync
         public void Flush() => changes.Clear();
 
-        protected SyncDictionary()
-        {
-            objects = new Dictionary<TKey, TValue>();
-        }
-
-        protected SyncDictionary(IEqualityComparer<TKey> eq)
-        {
-            objects = new Dictionary<TKey, TValue>(eq);
-        }
-
-        protected SyncDictionary(IDictionary<TKey, TValue> objects)
+        protected SyncIDictionary(IDictionary<TKey, TValue> objects)
         {
             this.objects = objects;
         }
@@ -120,7 +122,6 @@ namespace Mirror
                     case Operation.OP_ADD:
                     case Operation.OP_REMOVE:
                     case Operation.OP_SET:
-                    case Operation.OP_DIRTY:
                         SerializeKey(writer, change.key);
                         SerializeItem(writer, change.item);
                         break;
@@ -175,7 +176,6 @@ namespace Mirror
                 {
                     case Operation.OP_ADD:
                     case Operation.OP_SET:
-                    case Operation.OP_DIRTY:
                         key = DeserializeKey(reader);
                         item = DeserializeItem(reader);
                         if (apply)
@@ -231,18 +231,21 @@ namespace Mirror
             return false;
         }
 
-        public void Dirty(TKey index)
-        {
-            AddOperation(Operation.OP_DIRTY, index, objects[index]);
-        }
-
         public TValue this[TKey i]
         {
             get => objects[i];
             set
             {
-                AddOperation(ContainsKey(i) ? Operation.OP_SET : Operation.OP_ADD, i, value);
-                objects[i] = value;
+                if (ContainsKey(i))
+                {
+                    objects[i] = value;
+                    AddOperation(Operation.OP_SET, i, value);
+                }
+                else
+                {
+                    objects[i] = value;
+                    AddOperation(Operation.OP_ADD, i, value);
+                }
             }
         }
 
@@ -261,12 +264,8 @@ namespace Mirror
             return TryGetValue(item.Key, out TValue val) && EqualityComparer<TValue>.Default.Equals(val, item.Value);
         }
 
-        public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
+        public void CopyTo([NotNull] KeyValuePair<TKey, TValue>[] array, int arrayIndex)
         {
-            if (array == null)
-            {
-                throw new System.ArgumentNullException(nameof(array), "Array Is Null");
-            }
             if (arrayIndex < 0 || arrayIndex > array.Length)
             {
                 throw new System.ArgumentOutOfRangeException(nameof(arrayIndex), "Array Index Out of Range");
@@ -297,5 +296,23 @@ namespace Mirror
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator() => objects.GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => objects.GetEnumerator();
+    }
+
+    public abstract class SyncDictionary<TKey, TValue> : SyncIDictionary<TKey, TValue>
+    {
+        protected SyncDictionary() : base(new Dictionary<TKey, TValue>())
+        {
+        }
+
+        protected SyncDictionary(IEqualityComparer<TKey> eq) : base(new Dictionary<TKey, TValue>(eq))
+        {
+        }
+
+        public new Dictionary<TKey, TValue>.ValueCollection Values => ((Dictionary<TKey, TValue>)objects).Values;
+
+        public new Dictionary<TKey, TValue>.KeyCollection Keys => ((Dictionary<TKey, TValue>)objects).Keys;
+
+        public new Dictionary<TKey, TValue>.Enumerator GetEnumerator() => ((Dictionary<TKey, TValue>)objects).GetEnumerator();
+
     }
 }

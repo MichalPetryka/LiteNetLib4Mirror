@@ -35,7 +35,7 @@ namespace Mirror
         /// Called on server from StartServer to initialize the Authenticator
         /// <para>Server message handlers should be registered in this method.</para>
         /// </summary>
-        public virtual void OnStartServer() {}
+        public virtual void OnStartServer() { }
 
         // This will get more code in the near future
         internal void OnServerAuthenticateInternal(NetworkConnection conn)
@@ -57,7 +57,7 @@ namespace Mirror
         /// Called on client from StartClient to initialize the Authenticator
         /// <para>Client message handlers should be registered in this method.</para>
         /// </summary>
-        public virtual void OnStartClient() {}
+        public virtual void OnStartClient() { }
 
         // This will get more code in the near future
         internal void OnClientAuthenticateInternal(NetworkConnection conn)
@@ -76,7 +76,7 @@ namespace Mirror
         void OnValidate()
         {
 #if UNITY_EDITOR
-            // automatically assign NetworkManager field if we add this to NetworkManager
+            // automatically assign authenticator field if we add this to NetworkManager
             NetworkManager manager = GetComponent<NetworkManager>();
             if (manager != null && manager.authenticator == null)
             {
