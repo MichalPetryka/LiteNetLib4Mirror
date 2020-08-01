@@ -124,7 +124,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		protected internal virtual void ProcessConnectionRequest(ConnectionRequest request)
 		{
-			if (LiteNetLib4MirrorCore.Host.PeersCount >= maxConnections)
+			if (LiteNetLib4MirrorCore.Host.ConnectedPeersCount >= maxConnections)
 			{
 				request.Reject();
 			}

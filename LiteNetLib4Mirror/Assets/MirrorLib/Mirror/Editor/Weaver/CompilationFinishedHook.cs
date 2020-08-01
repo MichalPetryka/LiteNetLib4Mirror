@@ -67,7 +67,7 @@ namespace Mirror.Weaver
                 }
             }
 
-            UnityEditorInternal.InternalEditorUtility.RequestScriptReload();
+            EditorUtility.RequestScriptReload();
         }
 
         static string FindMirrorRuntime()
