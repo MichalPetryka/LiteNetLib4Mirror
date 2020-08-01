@@ -84,7 +84,7 @@ namespace LiteNetLib
 
         //Data
         public byte[] RawData;
-        public ushort Size;
+        public int Size;
 
         //Delivery
         public object UserData;
@@ -92,7 +92,7 @@ namespace LiteNetLib
         public NetPacket(int size)
         {
             RawData = new byte[size];
-            Size = (ushort)size;
+            Size = size;
         }
 
         public NetPacket(PacketProperty property, int size)
@@ -100,19 +100,7 @@ namespace LiteNetLib
             size += GetHeaderSize(property);
             RawData = new byte[size];
             Property = property;
-            Size = (ushort)size;
-        }
-
-        public void Realloc(int toSize, bool clear)
-        {
-            Size = (ushort)toSize;
-            if (RawData.Length < toSize)
-            {
-                RawData = new byte[toSize];
-                return;
-            }
-            if (clear)  //clear not reallocated
-                Array.Clear(RawData, 0, toSize);
+            Size = size;
         }
 
         public static int GetHeaderSize(PacketProperty property)

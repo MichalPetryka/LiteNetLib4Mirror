@@ -9,6 +9,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Net;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.Networking.Types;
@@ -18,6 +19,8 @@ namespace Mirror
     [EditorBrowsable(EditorBrowsableState.Never), Obsolete("LLAPI is obsolete and will be removed from future versions of Unity")]
     public class LLAPITransport : Transport
     {
+        public const string Scheme = "unet";
+
         public ushort port = 7777;
 
         [Tooltip("Enable for WebGL games. Can only do either WebSockets or regular Sockets, not both (yet).")]
@@ -64,7 +67,8 @@ namespace Mirror
             MaxTimerTimeout = 12000
         };
 
-        readonly int channelId; // always use first channel
+        // always use first channel
+        readonly int channelId;
         byte error;
 
         int clientId = -1;
@@ -98,13 +102,21 @@ namespace Mirror
             serverSendBuffer = new byte[globalConfig.MaxPacketSize];
         }
 
+        public override bool Available()
+        {
+            // LLAPI runs on all platforms, including webgl
+            return true;
+        }
+
         #region client
         public override bool ClientConnected()
         {
             return clientConnectionId != -1;
         }
 
-        public override void ClientConnect(string address)
+
+
+        void ClientConnect(string address, int port)
         {
             // LLAPI can't handle 'localhost'
             if (address.ToLower() == "localhost") address = "127.0.0.1";
@@ -125,6 +137,21 @@ namespace Mirror
             }
         }
 
+        public override void ClientConnect(string address)
+        {
+            ClientConnect(address, port);
+        }
+
+        public override void ClientConnect(Uri uri)
+        {
+            if (uri.Scheme != Scheme)
+                throw new ArgumentException($"Invalid url {uri}, use {Scheme}://host:port instead", nameof(uri));
+
+            int serverPort = uri.IsDefaultPort ? port : uri.Port;
+
+            ClientConnect(uri.Host, serverPort);
+        }
+
         public override bool ClientSend(int channelId, ArraySegment<byte> segment)
         {
             // Send buffer is copied internally, so we can get rid of segment
@@ -142,7 +169,8 @@ namespace Mirror
 
         public bool ProcessClientMessage()
         {
-            if (clientId == -1) return false;
+            if (clientId == -1)
+                return false;
 
             NetworkEventType networkEvent = NetworkTransport.ReceiveFromHost(clientId, out int connectionId, out int channel, clientReceiveBuffer, clientReceiveBuffer.Length, out int receivedSize, out error);
 
@@ -196,6 +224,18 @@ namespace Mirror
         #endregion
 
         #region server
+
+        // right now this just returns the first available uri,
+        // should we return the list of all available uri?
+        public override Uri ServerUri()
+        {
+            UriBuilder builder = new UriBuilder();
+            builder.Scheme = Scheme;
+            builder.Host = Dns.GetHostName();
+            builder.Port = port;
+            return builder.Uri;
+        }
+
         public override bool ServerActive()
         {
             return serverHostId != -1;
@@ -242,7 +282,8 @@ namespace Mirror
 
         public bool ProcessServerMessage()
         {
-            if (serverHostId == -1) return false;
+            if (serverHostId == -1)
+                return false;
 
             NetworkEventType networkEvent = NetworkTransport.ReceiveFromHost(serverHostId, out int connectionId, out int channel, serverReceiveBuffer, serverReceiveBuffer.Length, out int receivedSize, out error);
 
@@ -316,14 +357,8 @@ namespace Mirror
         public void LateUpdate()
         {
             // process all messages
-            while (ProcessClientMessage()) {}
-            while (ProcessServerMessage()) {}
-        }
-
-        public override bool Available()
-        {
-            // websocket is available in all platforms (including webgl)
-            return useWebsockets || base.Available();
+            while (ProcessClientMessage()) { }
+            while (ProcessServerMessage()) { }
         }
 
         public override void Shutdown()

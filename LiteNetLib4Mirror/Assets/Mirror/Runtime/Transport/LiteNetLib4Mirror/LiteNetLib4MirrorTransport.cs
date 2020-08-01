@@ -124,7 +124,7 @@ namespace Mirror.LiteNetLib4Mirror
 
 		protected internal virtual void ProcessConnectionRequest(ConnectionRequest request)
 		{
-			if (LiteNetLib4MirrorCore.Host.PeersCount >= maxConnections)
+			if (LiteNetLib4MirrorCore.Host.ConnectedPeersCount >= maxConnections)
 			{
 				request.Reject();
 			}
@@ -210,6 +210,16 @@ namespace Mirror.LiteNetLib4Mirror
 			{
 				LiteNetLib4MirrorCore.StopTransport();
 			}
+		}
+
+		public override Uri ServerUri()
+		{
+			UriBuilder builder = new UriBuilder
+			{
+				Host = ipv6Enabled ? serverIPv6BindAddress : serverIPv4BindAddress,
+				Port = port
+			};
+			return builder.Uri;
 		}
 
 		public override bool ServerActive()

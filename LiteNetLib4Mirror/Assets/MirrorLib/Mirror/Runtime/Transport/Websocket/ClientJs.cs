@@ -1,17 +1,11 @@
 #if UNITY_WEBGL && !UNITY_EDITOR
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Net.Sockets;
-using System.Net.WebSockets;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Tasks;
 using AOT;
-using Ninja.WebSockets;
-using UnityEngine;
 
 namespace Mirror.Websocket
 {
@@ -26,18 +20,23 @@ namespace Mirror.Websocket
         public event Action Connected;
         public event Action<ArraySegment<byte>> ReceivedData;
         public event Action Disconnected;
+#pragma warning disable CS0067 // The event is never used.
         public event Action<Exception> ReceivedError;
+#pragma warning restore CS0067 // The event is never used.
 
+        readonly ConcurrentQueue<byte[]> receivedQueue = new ConcurrentQueue<byte[]>();
+
+        public bool enabled;
         public bool Connecting { get; set; }
         public bool IsConnected
         {
             get
             {
-                return SocketState(m_NativeRef) != 0;
+                return SocketState(nativeRef) != 0;
             }
         }
 
-        int m_NativeRef = 0;
+        int nativeRef = 0;
         readonly int id;
 
         public Client()
@@ -51,22 +50,32 @@ namespace Mirror.Websocket
 
             Connecting = true;
 
-            m_NativeRef = SocketCreate(uri.ToString(), id, OnOpen, OnData, OnClose);
+            nativeRef = SocketCreate(uri.ToString(), id, OnOpen, OnData, OnClose);
         }
 
         public void Disconnect()
         {
-            SocketClose(m_NativeRef);
+            SocketClose(nativeRef);
         }
 
         // send the data or throw exception
         public void Send(ArraySegment<byte> segment)
         {
-            SocketSend(m_NativeRef, segment.Array, segment.Count);
+            SocketSend(nativeRef, segment.Array, segment.Count);
         }
 
+        public bool ProcessClientMessage()
+        {
+            if (receivedQueue.TryDequeue(out byte[] data))
+            {
+                clients[id].ReceivedData(new ArraySegment<byte>(data));
 
-        #region Javascript native functions
+                return true;
+            }
+            return false;
+        }
+
+#region Javascript native functions
         [DllImport("__Internal")]
         static extern int SocketCreate(
             string url,
@@ -84,9 +93,9 @@ namespace Mirror.Websocket
         [DllImport("__Internal")]
         static extern void SocketClose(int socketInstance);
 
-        #endregion
+#endregion
 
-        #region Javascript callbacks
+#region Javascript callbacks
 
         [MonoPInvokeCallback(typeof(Action))]
         public static void OnOpen(int id)
@@ -109,9 +118,9 @@ namespace Mirror.Websocket
             byte[] data = new byte[length];
             Marshal.Copy(ptr, data, 0, length);
 
-            clients[id].ReceivedData(new ArraySegment<byte>(data));
+            clients[id].receivedQueue.Enqueue(data);
         }
-        #endregion
+#endregion
     }
 }
 

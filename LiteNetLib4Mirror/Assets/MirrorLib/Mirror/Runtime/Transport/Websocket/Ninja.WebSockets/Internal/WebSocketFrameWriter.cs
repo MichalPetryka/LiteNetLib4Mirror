@@ -20,10 +20,8 @@
 // THE SOFTWARE.
 // ---------------------------------------------------------------------
 
-using System.IO;
 using System;
-using System.Net.WebSockets;
-using System.Text;
+using System.IO;
 
 namespace Ninja.WebSockets.Internal
 {

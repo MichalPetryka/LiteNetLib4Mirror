@@ -1,3 +1,5 @@
+using System;
+
 namespace LiteNetLib
 {
     internal sealed class SequencedChannel : BaseChannel
@@ -9,6 +11,7 @@ namespace LiteNetLib
         private readonly NetPacket _ackPacket;
         private bool _mustSendAck;
         private readonly byte _id;
+        private long _lastPacketSendTime;
 
         public SequencedChannel(NetPeer peer, bool reliable, byte id) : base(peer)
         {
@@ -22,9 +25,16 @@ namespace LiteNetLib
         {
             if (_reliable && OutgoingQueue.Count == 0)
             {
+                long currentTime = DateTime.UtcNow.Ticks;
+                long packetHoldTime = currentTime - _lastPacketSendTime;
+                if (packetHoldTime < Peer.ResendDelay * TimeSpan.TicksPerMillisecond)
+                    return;
                 var packet = _lastPacket;
-                if(packet != null)
+                if (packet != null)
+                {
+                    _lastPacketSendTime = currentTime;
                     Peer.SendUserData(packet);
+                }
             }
             else
             {
@@ -39,9 +49,14 @@ namespace LiteNetLib
                         Peer.SendUserData(packet);
 
                         if (_reliable && OutgoingQueue.Count == 0)
+                        {
+                            _lastPacketSendTime = DateTime.UtcNow.Ticks;
                             _lastPacket = packet;
+                        }
                         else
+                        {
                             Peer.NetManager.NetPacketPool.Recycle(packet);
+                        }
                     }
                 }
             }
@@ -56,6 +71,8 @@ namespace LiteNetLib
 
         public override bool ProcessPacket(NetPacket packet)
         {
+            if (packet.IsFragmented)
+                return false;
             if (packet.Property == PacketProperty.Ack)
             {
                 if (_reliable && _lastPacket != null && packet.Sequence == _lastPacket.Sequence)
@@ -68,7 +85,10 @@ namespace LiteNetLib
             {
                 Peer.Statistics.PacketLoss += (ulong)(relative - 1);
                 _remoteSequence = packet.Sequence;
-                Peer.AddIncomingPacket(packet);
+                Peer.NetManager.CreateReceiveEvent(
+                    packet, 
+                    _reliable ? DeliveryMethod.ReliableSequenced : DeliveryMethod.Sequenced, 
+                    Peer);
                 packetProcessed = true;
             }
             _mustSendAck = true;
